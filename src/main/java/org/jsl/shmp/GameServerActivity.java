@@ -47,13 +47,13 @@ public class GameServerActivity extends GameActivity
 
         final String deviceId = (String) getIntent().getSerializableExtra( MainActivity.EXTRA_DEVICE_ID );
         final String playerName = (String) getIntent().getSerializableExtra( MainActivity.EXTRA_PLAYER_NAME );
-        final Integer gambleTime = (Integer) getIntent().getSerializableExtra( MainActivity.EXTRA_GAMBLE_TIME );
+        final Integer gameTime = (Integer) getIntent().getSerializableExtra( MainActivity.EXTRA_GAME_TIME );
         final Integer caps = (Integer) getIntent().getSerializableExtra( MainActivity.EXTRA_CAPS );
 
         Log.d(LOG_TAG, "onCreate: deviceId=[" + deviceId +
-                "] playerName=[" + playerName + "] gambleTime=" + gambleTime + " caps=" + caps);
+                "] playerName=[" + playerName + "] gameTime=" + gameTime + " caps=" + caps);
 
-        m_view = new GameServerView( this, deviceId, playerName, gambleTime, caps, (NsdManager) getSystemService(Context.NSD_SERVICE) );
+        m_view = new GameServerView( this, deviceId, playerName, gameTime, caps, (NsdManager) getSystemService(Context.NSD_SERVICE) );
         setContentView( m_view );
 
         m_pause = false;

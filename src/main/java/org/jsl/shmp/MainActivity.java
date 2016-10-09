@@ -50,7 +50,7 @@ public class MainActivity extends Activity
     public static final String EXTRA_DEVICE_ID = "device-id";
     public static final String EXTRA_SERVER_DEVICE_ID = "server-device-id";
     public static final String EXTRA_SERVER_PLAYER_NAME = "server-player-name";
-    public static final String EXTRA_GAMBLE_TIME = "gamble-time";
+    public static final String EXTRA_GAME_TIME = "game-time";
     public static final String EXTRA_CAPS = "caps";
     public static final String EXTRA_PLAYER_NAME = "player-name";
     public static final String EXTRA_SERVER_ADDRESS = "game-server-address";
@@ -482,8 +482,8 @@ public class MainActivity extends Activity
         final Intent intent = new Intent( MainActivity.this, GameServerActivity.class );
         intent.putExtra(EXTRA_DEVICE_ID, m_deviceID);
         intent.putExtra(EXTRA_PLAYER_NAME, m_playerName);
-        intent.putExtra(EXTRA_GAMBLE_TIME, 20);
-        intent.putExtra(EXTRA_CAPS, 3);
+        intent.putExtra(EXTRA_GAME_TIME, Prefs.DEFAULT_GAME_TIME);
+        intent.putExtra(EXTRA_CAPS, Prefs.DEFAULT_CAPS);
         startActivityForResult(intent, REQUEST_CODE_GAME);
     }
 

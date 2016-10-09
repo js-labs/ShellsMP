@@ -294,7 +294,7 @@ public class GameServerView extends GameView
 
     private final GameServerActivity m_activity;
     private final NsdManager m_nsdManager;
-    private final int m_gambleTime;
+    private final int m_gameTime;
     private final Cap [] m_cap;
     private final String m_strPort;
     private final int m_ballRadius;
@@ -520,13 +520,13 @@ public class GameServerView extends GameView
         return bitmap;
     }
 
-    public GameServerView( GameServerActivity activity, String deviceId, String playerName, int gambleTime, int caps, NsdManager nsdManager )
+    public GameServerView( GameServerActivity activity, String deviceId, String playerName, int gameTime, int caps, NsdManager nsdManager )
     {
         super( activity, deviceId, playerName );
 
         m_activity = activity;
         m_nsdManager = nsdManager;
-        m_gambleTime = gambleTime;
+        m_gameTime = gameTime;
         m_cap = new Cap[caps];
         m_strPort = getResources().getString( R.string.port );
         m_ballRadius = (getBottomReservedHeight() / 3);
@@ -1086,10 +1086,10 @@ public class GameServerView extends GameView
                             m_cap[capIdx].moveTo( bx, by );
                             m_state = STATE_GAMBLE;
 
-                            final GambleTimer gambleTimer = new GambleTimerImpl( m_gambleTime );
+                            final GambleTimer gambleTimer = new GambleTimerImpl(m_gameTime);
                             m_timerManager.scheduleTimer( getTimerQueue(), gambleTimer );
 
-                            gambleTime = m_gambleTime;
+                            gambleTime = m_gameTime;
                         }
                         else
                         {
@@ -1177,7 +1177,7 @@ public class GameServerView extends GameView
                                     final float vcx = getVirtualX( cap.getX() );
                                     final float vcy = getVirtualY( cap.getY() );
                                     final RetainableByteBuffer msg = Protocol.PutCap.create(
-                                            m_byteBufferPool, (short)capIdx, vcx, vcy, m_gambleTime );
+                                            m_byteBufferPool, (short)capIdx, vcx, vcy, m_gameTime);
 
                                     m_session.sendMessage( msg );
                                     msg.release();
@@ -1185,7 +1185,7 @@ public class GameServerView extends GameView
                                     m_state = STATE_GAMBLE;
                                     m_activity.playSound_CapPut();
 
-                                    final GambleTimer gambleTimer = new GambleTimerImpl( m_gambleTime );
+                                    final GambleTimer gambleTimer = new GambleTimerImpl(m_gameTime);
                                     m_timerManager.scheduleTimer( getTimerQueue(), gambleTimer );
                                 }
                             }
