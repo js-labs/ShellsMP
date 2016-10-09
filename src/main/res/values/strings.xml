@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ad_unit_id">ca-app-pub-4797195585832639/9968657703</string>
-    <string name="app_id">ca-app-pub-4797195585832639~8043416100</string>
     <string name="about">About</string>
-    <string name="add">Add</string>
-    <string name="add_5_sec">Add 5 seconds game time for</string>
-    <string name="add_1_cap">Add 1 cap for</string>
     <string name="app_name">ShellsMP</string>
-    <string name="buy">Buy</string>
     <string name="cancel">Cancel</string>
     <string name="cant_connect_to_server">Can\'t connect to the game server</string>
     <string name="caps">Caps</string>
