@@ -23,6 +23,7 @@ import android.app.AlertDialog;
 import android.content.*;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -414,26 +415,32 @@ public class MainActivity extends Activity
     private class SettingsDialogClickListener implements DialogInterface.OnClickListener
     {
         private final EditText m_editTextPlayerName;
+        private final CheckBox m_checkBoxCheckWiFiStatusOnStart;
 
-        public SettingsDialogClickListener( EditText editTextPlayerName )
+        public SettingsDialogClickListener(
+                EditText editTextPlayerName,
+                CheckBox checkBoxCheckWiFiStatusOnStart )
         {
             m_editTextPlayerName = editTextPlayerName;
+            m_checkBoxCheckWiFiStatusOnStart = checkBoxCheckWiFiStatusOnStart;
         }
 
-        public void onClick( DialogInterface dialog, int which )
+        public void onClick(DialogInterface dialog, int which)
         {
+            final SharedPreferences sharedPreferences = getPreferences( Context.MODE_PRIVATE );
+            final SharedPreferences.Editor editor = sharedPreferences.edit();
+
             final String playerName = m_editTextPlayerName.getText().toString();
             if (playerName.compareTo(m_playerName) != 0)
             {
                 m_playerName = playerName;
                 final String title = getString(R.string.app_name) + " : " + m_playerName;
                 setTitle( title );
-
-                final SharedPreferences sharedPreferences = getPreferences( Context.MODE_PRIVATE );
-                final SharedPreferences.Editor editor = sharedPreferences.edit();
-                editor.putString( Prefs.PLAYER_NAME, m_playerName );
-                editor.apply();
+                editor.putString(Prefs.PLAYER_NAME, m_playerName);
             }
+
+            editor.putBoolean(Prefs.CHECK_WIFI_STATUS_ON_START, m_checkBoxCheckWiFiStatusOnStart.isChecked());
+            editor.apply();
         }
     }
 
@@ -576,7 +583,38 @@ public class MainActivity extends Activity
 
         m_stop = false;
         m_state = STATE_START_DISCOVERY;
-        m_nsdManager.discoverServices( NSD_SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, m_discoveryListener );
+        m_nsdManager.discoverServices(NSD_SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, m_discoveryListener);
+
+        final SharedPreferences sharedPreferences = getSharedPreferences(MainActivity.class.getSimpleName(), Context.MODE_PRIVATE);
+        final boolean checkWiFiStatusOnStart = sharedPreferences.getBoolean(Prefs.CHECK_WIFI_STATUS_ON_START, true);
+        if (checkWiFiStatusOnStart)
+        {
+            final WifiManager manager = (WifiManager) getSystemService(WIFI_SERVICE);
+            if (!manager.isWifiEnabled())
+            {
+                final LayoutInflater layoutInflater = LayoutInflater.from(this);
+                final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+                final View dialogView = layoutInflater.inflate(R.layout.dialog_wifi, null);
+                final DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (which == DialogInterface.BUTTON_POSITIVE) {
+                            manager.setWifiEnabled(true);
+                        }
+                        final CheckBox checkBox = (CheckBox) dialogView.findViewById(R.id.checkBoxNeverAskAgain);
+                        if (checkBox.isChecked()) {
+                            final SharedPreferences.Editor editor = sharedPreferences.edit();
+                            editor.putBoolean(Prefs.CHECK_WIFI_STATUS_ON_START, false);
+                            editor.apply();
+                        }
+                    }
+                };
+                dialogBuilder.setView(dialogView);
+                dialogBuilder.setPositiveButton(getString(R.string.turn_wifi_on), listener);
+                dialogBuilder.setNegativeButton(getString(R.string.cancel), listener);
+                final AlertDialog dialog = dialogBuilder.create();
+                dialog.show();
+            }
+        }
 
         Log.d( LOG_TAG, "onResume: done" );
     }
@@ -745,13 +783,18 @@ public class MainActivity extends Activity
         {
             case R.id.actionSettings:
             {
+                final SharedPreferences sharedPreferences = getPreferences(MODE_PRIVATE);
                 final View dialogView = layoutInflater.inflate(R.layout.dialog_settings, null);
-                final EditText editTextPlayerName = (EditText) dialogView.findViewById( R.id.editTextPlayerName );
-                editTextPlayerName.setText( m_playerName );
-                dialogBuilder.setTitle( R.string.settings );
-                dialogBuilder.setView( dialogView );
-                dialogBuilder.setCancelable( true );
-                dialogBuilder.setPositiveButton( getString(R.string.set), new SettingsDialogClickListener(editTextPlayerName) );
+                final EditText editTextPlayerName = (EditText) dialogView.findViewById(R.id.editTextPlayerName);
+                final CheckBox checkBoxCheckWiFIStatusOnStart = (CheckBox) dialogView.findViewById(R.id.checkBoxCheckWiFiStatusOnStart);
+                editTextPlayerName.setText(m_playerName);
+                checkBoxCheckWiFIStatusOnStart.setChecked(sharedPreferences.getBoolean(Prefs.CHECK_WIFI_STATUS_ON_START, true));
+                dialogBuilder.setTitle(R.string.settings);
+                dialogBuilder.setView(dialogView);
+                dialogBuilder.setCancelable(true);
+                final DialogInterface.OnClickListener dialogListener = new SettingsDialogClickListener(
+                        editTextPlayerName, checkBoxCheckWiFIStatusOnStart);
+                dialogBuilder.setPositiveButton( getString(R.string.set), dialogListener );
                 dialogBuilder.setNegativeButton( getString(R.string.cancel), null );
                 final AlertDialog dialog = dialogBuilder.create();
                 dialog.show();

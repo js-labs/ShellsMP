@@ -23,12 +23,11 @@ import java.util.concurrent.TimeUnit;
 public class Prefs
 {
     public static final String PLAYER_NAME = "player-name";
+    public static final String CHECK_WIFI_STATUS_ON_START = "check-wifi-status-on-start";
     public static final String PING_INTERVAL = "ping-interval";
     public static final String PING_TIMEOUT = "ping-timeout";
     public static final TimeUnit PING_TIME_UNIT = TimeUnit.SECONDS;
     public static final long DEFAULT_PING_INTERVAL = 0;
     public static final long DEFAULT_PING_TIMEOUT = 10;
-    public static final int DEFAULT_GAMBLE_TIME = 20;
-    public static final int DEFAULT_CAPS = 3;
     public static final boolean RENDER_DEBUG = true;
 }
