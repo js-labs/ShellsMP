@@ -27,7 +27,6 @@ import android.graphics.Color;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.opengl.GLES20;
-import android.os.Build;
 import android.util.Log;
 import android.view.ViewConfiguration;
 import org.jsl.collider.Collider;
@@ -60,12 +59,12 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
             AtomicReferenceFieldUpdater.newUpdater( RenderThreadRunnable.class, RenderThreadRunnable.class, "nextRenderThreadRunnable" );
 
     private static AtomicReferenceFieldUpdater<GameView, RenderThreadRunnable> s_tailUpdater =
-            AtomicReferenceFieldUpdater.newUpdater( GameView.class, RenderThreadRunnable.class, "m_tail" );
+            AtomicReferenceFieldUpdater.newUpdater(GameView.class, RenderThreadRunnable.class, "m_tail");
 
     public static abstract class RenderThreadRunnable
     {
         private volatile RenderThreadRunnable nextRenderThreadRunnable;
-        public abstract void runOnRenderThread();
+        public abstract boolean runOnRenderThread(int frameId);
     }
 
     protected static abstract class GambleTimer implements TimerQueue.Task
@@ -148,6 +147,7 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
     private final RenderThreadRunnable m_execMarker;
     private RenderThreadRunnable m_head;
     private volatile RenderThreadRunnable m_tail;
+    private int m_frameId;
 
     private float [] m_vpMatrix;
     private Canvas3D m_canvas3D;
@@ -171,6 +171,7 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
 
     private void processUpdates()
     {
+        final int frameId = ++m_frameId;
         RenderThreadRunnable runnable = m_head;
         for (;;)
         {
@@ -182,7 +183,7 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
 
                 if (s_tailUpdater.compareAndSet(this, runnable, m_execMarker))
                 {
-                    runnable.runOnRenderThread();
+                    final boolean renderFrame = runnable.runOnRenderThread(frameId);
 
                     m_head = null;
                     if (s_tailUpdater.compareAndSet(this, m_execMarker, null))
@@ -191,8 +192,17 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
                             throw new AssertionError();
                         break;
                     }
+
                     while ((next = m_execMarker.nextRenderThreadRunnable) == null);
-                    s_renderThreadRunnableNextUpdater.lazySet( m_execMarker, null );
+                    s_renderThreadRunnableNextUpdater.lazySet(m_execMarker, null);
+
+                    if (renderFrame)
+                    {
+                        m_head = next;
+                        queueEvent(m_renderProcessor);
+                        break;
+                    }
+
                     runnable = next;
                     continue;
                 }
@@ -203,7 +213,13 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
             else
                 s_renderThreadRunnableNextUpdater.lazySet( runnable, null );
 
-            runnable.runOnRenderThread();
+            final boolean renderFrame = runnable.runOnRenderThread(frameId);
+            if (renderFrame)
+            {
+                m_head = next;
+                queueEvent(m_renderProcessor);
+                break;
+            }
             runnable = next;
         }
 
@@ -383,7 +399,7 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
         };
 
         m_execMarker = new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 /* should never be called */
                 throw new AssertionError();
             }

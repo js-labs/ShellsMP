@@ -356,8 +356,9 @@ public class GameClientView extends GameView
         protected void onUpdate( final long value, final float fontSize )
         {
             executeOnRenderThread( new RenderThreadRunnable() {
-                public void runOnRenderThread() {
+                public boolean runOnRenderThread(int frameId) {
                     setBottomLineText( Long.toString(value), GAMBLE_TIMER_COLOR, fontSize );
+                    return false;
                 }
             } );
         }
@@ -514,7 +515,7 @@ public class GameClientView extends GameView
         final float angleXd = (float) (m_angleX * 180f / Math.PI);
         final float angleZd = (float) (m_angleZ * 180f / Math.PI);
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 final Context context = getContext();
                 try
                 {
@@ -538,6 +539,7 @@ public class GameClientView extends GameView
                 m_tableMatrix = new float[48];
                 updateTableViewMatrixRT( angleXd, angleZd );
                 setStatusLine( statusLine );
+                return false;
             }
         } );
     }
@@ -599,8 +601,9 @@ public class GameClientView extends GameView
             final float angleXd = (float) (angleX / Math.PI * 180f);
             final float angleZd = (float) (angleZ / Math.PI * 180f);
             executeOnRenderThread( new RenderThreadRunnable() {
-                public void runOnRenderThread() {
+                public boolean runOnRenderThread(int frameId) {
                     updateTableViewMatrixRT( angleXd, angleZd );
+                    return false;
                 }
             } );
             m_angleX = angleX;
@@ -624,9 +627,9 @@ public class GameClientView extends GameView
                     if (s_stateUpdater.compareAndSet(this, state, STATE_CHECK))
                     {
                         executeOnRenderThread( new RenderThreadRunnable() {
-                            public void runOnRenderThread()
-                            {
+                            public boolean runOnRenderThread(int frameId) {
                                 onTouchEventRT( x, y );
+                                return false;
                             }
                         } );
                         break;
@@ -682,8 +685,9 @@ public class GameClientView extends GameView
     {
         final Bitmap statusLine = createStatusLine( ping, m_serverPlayerName );
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 setStatusLine( statusLine );
+                return false;
             }
         } );
     }
@@ -697,8 +701,9 @@ public class GameClientView extends GameView
         final float x = -(virtualX * m_scale);
         final float y = -(virtualY * m_scale);
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 m_ball.updateMatrix( x, y, m_ballRadius, m_viewPosition, m_tmpMatrix );
+                return false;
             }
         } );
     }
@@ -712,8 +717,9 @@ public class GameClientView extends GameView
     public void removeBallCT()
     {
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 m_ball.setVisible( false );
+                return false;
             }
         } );
     }
@@ -728,8 +734,9 @@ public class GameClientView extends GameView
         final float z = (virtualZ * m_scale);
         final int fid = id;
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 m_cap[fid].updateMatrix( x, y, z, m_ballRadius, m_tmpMatrix );
+                return false;
             }
         } );
     }
@@ -741,14 +748,15 @@ public class GameClientView extends GameView
 
         if (gambleTime > 0)
             m_timerManager.scheduleTimer( getTimerQueue(), new GambleTimerImpl(gambleTime) );
-   }
+    }
 
     public void removeCapCT( int id )
     {
         final int fid = id;
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 m_cap[fid].setVisible( false );
+                return false;
             }
         } );
     }
@@ -769,7 +777,7 @@ public class GameClientView extends GameView
         }
 
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 for (;;)
                 {
                     final int state = s_stateUpdater.get( GameClientView.this );
@@ -789,6 +797,7 @@ public class GameClientView extends GameView
                         break;
                     }
                 }
+                return false;
             }
         } );
 

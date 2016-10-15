@@ -233,7 +233,7 @@ public class GameServerView extends GameView
             if (m_timerManager.resetTimer(this))
             {
                 executeOnRenderThread( new RenderThreadRunnable() {
-                    public void runOnRenderThread()
+                    public boolean runOnRenderThread(int frameId)
                     {
                         /* Change status line,
                          * then change state then send message to the client,
@@ -242,14 +242,15 @@ public class GameServerView extends GameView
                         setBottomLineText( R.string.waiting, GAMBLE_TIMER_COLOR, 0.5f );
 
                         post( new Runnable() {
-                            public void run()
-                            {
+                            public void run() {
                                 m_state = STATE_WAIT_REPLY;
                                 final RetainableByteBuffer msg = Protocol.Guess.create( m_byteBufferPool, (short) m_capWithBall );
                                 m_session.sendMessage( msg );
                                 msg.release();
                             }
                         } );
+
+                        return false;
                     }
                 } );
             }
@@ -258,8 +259,9 @@ public class GameServerView extends GameView
         protected void onUpdate( final long value, final float fontSize )
         {
             executeOnRenderThread( new RenderThreadRunnable() {
-                public void runOnRenderThread() {
+                public boolean runOnRenderThread(int frameId) {
                     setBottomLineText( Long.toString(value), GAMBLE_TIMER_COLOR, fontSize );
+                    return false;
                 }
             } );
         }
@@ -362,8 +364,9 @@ public class GameServerView extends GameView
                 m_nsdManager.registerService( serviceInfo, NsdManager.PROTOCOL_DNS_SD, m_registrationListener );
                 final Bitmap statusLine = createStatusLine( localPortNumber, Color.WHITE );
                 executeOnRenderThread( new RenderThreadRunnable() {
-                    public void runOnRenderThread() {
+                    public boolean runOnRenderThread(int frameId) {
                         setStatusLine( statusLine );
+                        return false;
                     }
                 } );
             }
@@ -461,8 +464,9 @@ public class GameServerView extends GameView
 
                 final Bitmap statusLine = createStatusLine( m_portNumber, Color.GREEN );
                 executeOnRenderThread( new RenderThreadRunnable() {
-                    public void runOnRenderThread() {
+                    public boolean runOnRenderThread(int frameId) {
                         setStatusLine( statusLine );
+                        return false;
                     }
                 } );
             }
@@ -695,9 +699,10 @@ public class GameServerView extends GameView
         m_ball.moveTo( ballX, ballY );
 
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 setStatusLine( statusLine );
                 m_ball.updateMatrix( ballX, (getHeight() - ballY), m_ballRadius, m_tmpMatrix );
+                return false;
             }
         } );
     }
@@ -719,8 +724,9 @@ public class GameServerView extends GameView
     {
         final Bitmap statusLine = createStatusLine( ping, m_clientPlayerName );
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 setStatusLine( statusLine );
+                return false;
             }
         } );
     }
@@ -730,11 +736,12 @@ public class GameServerView extends GameView
         m_state = STATE_FINISHED;
         m_win = (found ? 1 : 0);
         executeOnRenderThread( new RenderThreadRunnable() {
-            public void runOnRenderThread() {
+            public boolean runOnRenderThread(int frameId) {
                 if (m_win > 0)
                     setBottomLineText( R.string.win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
                 else
                     setBottomLineText( R.string.lost, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
+                return false;
             }
         } );
     }
@@ -853,8 +860,9 @@ public class GameServerView extends GameView
                 final float by = m_ball.moveByY( dy );
 
                 executeOnRenderThread( new RenderThreadRunnable() {
-                    public void runOnRenderThread() {
+                    public boolean runOnRenderThread(int frameId) {
                         m_ball.updateMatrix( bx, (getHeight() - by), m_ballRadius, m_tmpMatrix );
+                        return false;
                     }
                 } );
 
@@ -876,8 +884,9 @@ public class GameServerView extends GameView
                 final float cy = m_cap[capIdx].moveByY( dy );
 
                 executeOnRenderThread( new RenderThreadRunnable() {
-                    public void runOnRenderThread() {
+                    public boolean runOnRenderThread(int frameId) {
                         m_cap[capIdx].updateMatrix( cx, (getHeight() - cy), m_ballRadius, m_tmpMatrix );
+                        return false;
                     }
                 } );
 
@@ -943,8 +952,9 @@ public class GameServerView extends GameView
                                 final float fcx = cx;
                                 final float fcy = cy;
                                 executeOnRenderThread( new RenderThreadRunnable() {
-                                    public void runOnRenderThread() {
+                                    public boolean runOnRenderThread(int frameId) {
                                         cap.updateMatrix( fcx, (getHeight() - fcy), m_ballRadius, m_tmpMatrix );
+                                        return false;
                                     }
                                 } );
 
@@ -967,8 +977,9 @@ public class GameServerView extends GameView
                                 final float fcx = m_cap[idx].getX() + minDistance*dx/dist;
                                 final float fcy = m_cap[idx].getY() + minDistance*dy/dist;
                                 executeOnRenderThread( new RenderThreadRunnable() {
-                                    public void runOnRenderThread() {
+                                    public boolean runOnRenderThread(int frameId) {
                                         cap.updateMatrix( fcx, (getHeight() - fcy), m_ballRadius, m_tmpMatrix );
+                                        return false;
                                     }
                                 } );
                                 cap.moveTo( fcx, fcy );
@@ -993,8 +1004,9 @@ public class GameServerView extends GameView
                             final float fcx = cx;
                             final float fcy = cy;
                             executeOnRenderThread( new RenderThreadRunnable() {
-                                public void runOnRenderThread() {
+                                public boolean runOnRenderThread(int frameId) {
                                     cap.updateMatrix( fcx, (getHeight() - fcy), m_ballRadius, m_tmpMatrix );
+                                    return false;
                                 }
                             } );
 
@@ -1025,9 +1037,10 @@ public class GameServerView extends GameView
                     m_capIdx = capIdx;
 
                     executeOnRenderThread( new RenderThreadRunnable() {
-                        public void runOnRenderThread() {
+                        public boolean runOnRenderThread(int frameId) {
                             m_ball.updateMatrix( bx, (getHeight() - by), m_ballRadius, m_tmpMatrix );
                             m_cap[capIdx].updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                            return false;
                         }
                     } );
 
@@ -1042,8 +1055,9 @@ public class GameServerView extends GameView
                 else
                 {
                     executeOnRenderThread( new RenderThreadRunnable() {
-                        public void runOnRenderThread() {
+                        public boolean runOnRenderThread(int frameId) {
                             m_ball.updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                            return false;
                         }
                     } );
 
@@ -1078,8 +1092,9 @@ public class GameServerView extends GameView
                         {
                             /* Last cap */
                             executeOnRenderThread( new RenderThreadRunnable() {
-                                public void runOnRenderThread() {
+                                public boolean runOnRenderThread(int frameId) {
                                     m_cap[capIdx].updateMatrix( bx, (getHeight() - by), m_ballRadius, m_tmpMatrix );
+                                    return false;
                                 }
                             } );
 
@@ -1095,10 +1110,11 @@ public class GameServerView extends GameView
                         {
                             /* Set next cap */
                             executeOnRenderThread( new RenderThreadRunnable() {
-                                public void runOnRenderThread() {
+                                public boolean runOnRenderThread(int frameId) {
                                     final int height = getHeight();
                                     m_cap[capIdx].updateMatrix( bx, (height - by), m_ballRadius, m_tmpMatrix );
                                     m_cap[capIdxx].updateMatrix( m_bottomLineX, (height-m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                    return false;
                                 }
                             } );
                             m_cap[capIdx].moveTo( bx, by );
@@ -1126,8 +1142,9 @@ public class GameServerView extends GameView
                          * let's move cap to the start point.
                          */
                         executeOnRenderThread( new RenderThreadRunnable() {
-                            public void runOnRenderThread() {
+                            public boolean runOnRenderThread(int frameId) {
                                 m_cap[capIdx].updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                return false;
                             }
                         } );
 
@@ -1157,9 +1174,10 @@ public class GameServerView extends GameView
                                 {
                                     /* Last cap should cover ball if it is still visible */
                                     executeOnRenderThread( new RenderThreadRunnable() {
-                                        public void runOnRenderThread() {
+                                        public boolean runOnRenderThread(int frameId) {
                                             final int height = getHeight();
                                             m_cap[capIdx].updateMatrix( m_bottomLineX, (height-m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                            return false;
                                         }
                                     } );
 
@@ -1192,9 +1210,10 @@ public class GameServerView extends GameView
                             else
                             {
                                 executeOnRenderThread( new RenderThreadRunnable() {
-                                    public void runOnRenderThread() {
+                                    public boolean runOnRenderThread(int frameId) {
                                         final int height = getHeight();
                                         m_cap[capIdxx].updateMatrix( m_bottomLineX, (height-m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                        return false;
                                     }
                                 } );
 
@@ -1214,8 +1233,9 @@ public class GameServerView extends GameView
                         {
                             /* Cap intersects with a cap set before, remove it. */
                             executeOnRenderThread( new RenderThreadRunnable() {
-                                public void runOnRenderThread() {
+                                public boolean runOnRenderThread(int frameId) {
                                     m_cap[capIdx].updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                    return false;
                                 }
                             } );
 
@@ -1232,8 +1252,9 @@ public class GameServerView extends GameView
                 {
                     /* Cap is not in the valid range */
                     executeOnRenderThread( new RenderThreadRunnable() {
-                        public void runOnRenderThread() {
+                        public boolean runOnRenderThread(int frameId) {
                             m_cap[capIdx].updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                            return false;
                         }
                     } );
 
@@ -1263,9 +1284,9 @@ public class GameServerView extends GameView
                         {
                             m_state = STATE_WAIT_REPLY;
                             executeOnRenderThread( new RenderThreadRunnable() {
-                                public void runOnRenderThread()
-                                {
+                                public boolean runOnRenderThread(int frameId) {
                                     setBottomLineText( R.string.waiting, GAMBLE_TIMER_COLOR, 0.5f );
+                                    return false;
                                 }
                             } );
 
