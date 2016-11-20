@@ -45,6 +45,7 @@ public class GameClientView extends GameView
             s_stateUpdater = AtomicIntegerFieldUpdater.newUpdater( GameClientView.class, "m_state" );
 
     private static final float ANGLE_ADJUST = 4.0f;
+    private static final float MAX_FRAME_MOVE = 20.0f;
 
     private static final float ANGLE_X_MIN = (float) (Math.PI / 2f * 0.1f);
     private static final float ANGLE_X_MAX = (float) (Math.PI / 2f * 0.9f);
@@ -162,15 +163,19 @@ public class GameClientView extends GameView
         private float m_x;
         private float m_y;
         private float m_z;
+        private int   m_lastFrameId;
+        private float m_lastFrameX;
+        private float m_lastFrameY;
 
         public Cap( Model model )
         {
             m_model = model;
             m_matrix = new float[16];
             m_visible = false;
+            m_lastFrameId = -1;
         }
 
-        public void updateMatrix( float x, float y, float z, float radius, float [] tmp )
+        public boolean updateMatrix( float x, float y, float z, float radius, int frameId, float [] tmp )
         {
             Matrix.setIdentityM( tmp, 0 );
             Matrix.translateM( tmp, 0, x, y, z );
@@ -181,6 +186,23 @@ public class GameClientView extends GameView
             m_x = x;
             m_y = y;
             m_z = z;
+
+            if (m_lastFrameId == frameId)
+            {
+                if ((Math.abs(m_lastFrameX-m_x) >= MAX_FRAME_MOVE) ||
+                    (Math.abs(m_lastFrameY-m_y) >= MAX_FRAME_MOVE))
+                {
+                    /* Render frame */
+                    return true;
+                }
+            }
+            else
+            {
+                m_lastFrameId = frameId;
+                m_lastFrameX = m_x;
+                m_lastFrameY = m_y;
+            }
+            return false;
         }
 
         public void draw( float [] vpMatrix, float [] lightPosition, float [] tmp )
@@ -270,7 +292,7 @@ public class GameClientView extends GameView
         m_ball.updateMatrix( m_ballRadius, m_viewPosition, m_tmpMatrix );
     }
 
-    private void onTouchEventRT( float touchX, float touchY )
+    private void onTouchEventRT( float touchX, float touchY, int frameId )
     {
         /* executed on render thread */
         int touchCapIdx = -1;
@@ -306,21 +328,21 @@ public class GameClientView extends GameView
             s_stateUpdater.set( this, STATE_FINISHED );
 
             Cap cap = m_cap[touchCapIdx];
-            cap.updateMatrix( cap.getX(), cap.getY(), m_ballRadius*4, m_ballRadius, m_tmpMatrix );
+            cap.updateMatrix( cap.getX(), cap.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix );
 
             boolean found;
 
             if (touchCapIdx == m_capWithBall)
             {
-                setBottomLineText( R.string.win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
+                setBottomLineText( R.string.you_win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
                 found = true;
             }
             else
             {
-                setBottomLineText( R.string.lost, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
+                setBottomLineText( R.string.you_lose, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
 
                 cap = m_cap[m_capWithBall];
-                cap.updateMatrix( cap.getX(), cap.getY(), m_ballRadius*4, m_ballRadius, m_tmpMatrix );
+                cap.updateMatrix( cap.getX(), cap.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix );
                 found = false;
             }
 
@@ -628,7 +650,7 @@ public class GameClientView extends GameView
                     {
                         executeOnRenderThread( new RenderThreadRunnable() {
                             public boolean runOnRenderThread(int frameId) {
-                                onTouchEventRT( x, y );
+                                onTouchEventRT( x, y, frameId );
                                 return false;
                             }
                         } );
@@ -732,11 +754,10 @@ public class GameClientView extends GameView
         final float x = -(virtualX * m_scale);
         final float y = -(virtualY * m_scale);
         final float z = (virtualZ * m_scale);
-        final int fid = id;
+        final int cid = id;
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                m_cap[fid].updateMatrix( x, y, z, m_ballRadius, m_tmpMatrix );
-                return false;
+                return m_cap[cid].updateMatrix( x, y, z, m_ballRadius, frameId, m_tmpMatrix );
             }
         } );
     }

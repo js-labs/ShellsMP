@@ -296,7 +296,7 @@ public class GameServerView extends GameView
 
     private final GameServerActivity m_activity;
     private final NsdManager m_nsdManager;
-    private final int m_gameTime;
+    private final short m_gameTime;
     private final Cap [] m_cap;
     private final String m_strPort;
     private final int m_ballRadius;
@@ -524,7 +524,7 @@ public class GameServerView extends GameView
         return bitmap;
     }
 
-    public GameServerView( GameServerActivity activity, String deviceId, String playerName, int gameTime, int caps, NsdManager nsdManager )
+    public GameServerView( GameServerActivity activity, String deviceId, String playerName, short gameTime, short caps, NsdManager nsdManager )
     {
         super( activity, deviceId, playerName );
 
@@ -738,9 +738,9 @@ public class GameServerView extends GameView
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
                 if (m_win > 0)
-                    setBottomLineText( R.string.win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
+                    setBottomLineText( R.string.you_win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
                 else
-                    setBottomLineText( R.string.lost, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
+                    setBottomLineText( R.string.you_lose, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
                 return false;
             }
         } );
@@ -1086,7 +1086,7 @@ public class GameServerView extends GameView
                         m_ball.setVisible( false );
                         m_capWithBall = m_capIdx;
 
-                        int gambleTime;
+                        short gambleTime;
                         final int capIdxx = ++m_capIdx;
                         if (capIdxx == m_cap.length)
                         {
@@ -1220,7 +1220,7 @@ public class GameServerView extends GameView
                                 final Cap cap = m_cap[capIdx];
                                 final float vcx = (cap.getX() - m_tableRect.left - m_tableRect.width()/2) * m_scale;
                                 final float vcy = (m_tableRect.height()/2 - (cap.getY() - m_tableRect.top)) * m_scale;
-                                final RetainableByteBuffer msg = Protocol.PutCap.create( m_byteBufferPool, (short)capIdx, vcx, vcy, /*gambleTime*/0 );
+                                final RetainableByteBuffer msg = Protocol.PutCap.create( m_byteBufferPool, (short)capIdx, vcx, vcy, /*gambleTime*/(short)0 );
                                 m_session.sendMessage( msg );
                                 msg.release();
 

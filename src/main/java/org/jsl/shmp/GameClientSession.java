@@ -54,7 +54,7 @@ public class GameClientSession extends GameSession
 
             case Protocol.DragCap.ID:
                 m_view.setCapPositionCT(
-                        Protocol.DragCap.getID(msg),
+                        Protocol.DragCap.getId(msg),
                         Protocol.DragCap.getX(msg),
                         Protocol.DragCap.getY(msg),
                         Protocol.DragCap.getZ(msg) );
@@ -62,19 +62,23 @@ public class GameClientSession extends GameSession
 
             case Protocol.PutCap.ID:
                 m_view.putCapCT(
-                        Protocol.PutCap.getID(msg),
+                        Protocol.PutCap.getId(msg),
                         Protocol.PutCap.getX(msg),
                         Protocol.PutCap.getY(msg),
                         Protocol.PutCap.getGambleTime(msg) );
             break;
 
             case Protocol.RemoveCap.ID:
-                m_view.removeCapCT( Protocol.RemoveCap.getID(msg) );
+                m_view.removeCapCT( Protocol.RemoveCap.getId(msg) );
             break;
 
             case Protocol.Guess.ID:
                 m_view.guessCT( Protocol.Guess.getCapWithBall(msg) );
             break;
+
+            default:
+                if (BuildConfig.DEBUG)
+                    throw new AssertionError();
         }
         return 0;
     }

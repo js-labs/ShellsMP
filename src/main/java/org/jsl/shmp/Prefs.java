@@ -29,7 +29,7 @@ public class Prefs
     public static final TimeUnit PING_TIME_UNIT = TimeUnit.SECONDS;
     public static final long DEFAULT_PING_INTERVAL = 0;
     public static final long DEFAULT_PING_TIMEOUT = 10;
-    public static final int DEFAULT_GAME_TIME = 20;
-    public static final int DEFAULT_CAPS = 3;
+    public static final short DEFAULT_GAME_TIME = 20;
+    public static final short DEFAULT_CAPS = 3;
     public static final boolean RENDER_DEBUG = true;
 }

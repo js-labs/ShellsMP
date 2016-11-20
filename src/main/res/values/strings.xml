@@ -11,7 +11,6 @@
     <string name="game_time">Game time</string>
     <string name="guess">Guess</string>
     <string name="info">Information</string>
-    <string name="lost">Lost!</string>
     <string name="never_ask_again">Never ask again</string>
     <string name="nsd_not_found">NSD not found</string>
     <string name="other_player_quit_before_game_end">Other player quit before game end. You win!</string>
@@ -30,5 +29,6 @@
     <string name="waiting">waiting...</string>
     <string name="wifi_dialog_message">Can play only games on same WiFi network.</string>
     <string name="wifi_is_off">WiFI is off</string>
-    <string name="win">Win!</string>
+    <string name="you_lose">You lose!</string>
+    <string name="you_win">You win!</string>
 </resources>

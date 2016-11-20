@@ -42,7 +42,7 @@ abstract class GameSession implements Session.Listener
             {
                 if (BuildConfig.DEBUG && (header.remaining() < Protocol.Message.HEADER_SIZE))
                     throw new AssertionError();
-                final int messageLength = Protocol.Message.getLength( header );
+                final int messageLength = Protocol.Message.getMessageSize( header );
                 if (messageLength <= 0)
                     return -1; /* StreamDefragger.getNext() will return StreamDefragger.INVALID_HEADER */
                 return messageLength;
@@ -167,26 +167,26 @@ abstract class GameSession implements Session.Listener
             }
             else
             {
-                final int messageID = Protocol.Message.getMessageID( msg );
+                final int messageID = Protocol.Message.getMessageId( msg );
                 if (messageID == Protocol.Ping.ID)
                 {
-                    final int pingID = Protocol.Ping.getPingID( msg );
-                    final RetainableByteBuffer pong = Protocol.Pong.create( m_byteBufferPool, pingID );
+                    final int sequenceNumber = Protocol.Ping.getSequenceNumber( msg );
+                    final RetainableByteBuffer pong = Protocol.Pong.create( m_byteBufferPool, sequenceNumber );
                     m_session.sendData( pong );
                     pong.release();
                 }
                 else if (messageID == Protocol.Pong.ID)
                 {
                     long ping = -1;
-                    final int pingID = Protocol.Pong.getPingID( msg );
+                    final int sequenceNumber = Protocol.Pong.getSequenceNumber( msg );
                     m_lock.lock();
                     try
                     {
-                        final Long pingTime = m_pingTime.remove( pingID );
+                        final Long pingTime = m_pingTime.remove( sequenceNumber );
                         if (pingTime == null)
                         {
                             Log.e( LOG_TAG, m_session.getRemoteAddress() +
-                                    ": internal error: ping " + pingID + " not found." );
+                                    ": internal error: ping " + sequenceNumber + " not found." );
                         }
                         else
                         {

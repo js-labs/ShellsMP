@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol version="1"
+          version_type="short"
+          message_id_type="short"
+          message_size_type="short"
+          string_size_type="short"
+          string_encoding="UTF-8"
+          package="org.jsl.shmp">
+    <message id="1" name="handshake request">
+        <field name="protocol version" type="short"/>
+        <field name="desired table height" type="short"/>
+        <field name="device id" type="string"/>
+        <field name="player name" type="string"/>
+    </message>
+    <message id="2" name="handshake reply ok">
+        <field name="table height" type="short"/>
+        <field name="ball radius" type="short"/>
+        <field name="caps" type="short"/>
+    </message>
+    <message id="3" name="handshake reply fail">
+        <field name="status" type="string"/>
+    </message>
+    <message id="4" name="ping">
+        <field name="sequence number" type="int"/>
+    </message>
+    <message id="5" name="pong">
+        <field name="sequence number" type="int"/>
+    </message>
+    <message id="6" name="drag ball">
+        <field name="x" type="float"/>
+        <field name="y" type="float"/>
+    </message>
+    <message id="7" name="put ball">
+        <field name="x" type="float"/>
+        <field name="y" type="float"/>
+    </message>
+    <message id="8" name="remove ball"/>
+    <message id="9" name="drag cap">
+        <field name="id" type="short"/>
+        <field name="x" type="float"/>
+        <field name="y" type="float"/>
+        <field name="z" type="float"/>
+    </message>
+    <message id="10" name="put cap">
+        <field name="id" type="short"/>
+        <field name="x" type="float"/>
+        <field name="y" type="float"/>
+        <field name="gamble time" type="short"/>
+    </message>
+    <message id="11" name="remove cap">
+        <field name="id" type="short"/>
+    </message>
+    <message id="12" name="guess">
+        <field name="cap with ball" type="short"/>
+    </message>
+    <message id="13" name="guess reply">
+        <field name="found" type="boolean"/>
+    </message>
+</protocol>

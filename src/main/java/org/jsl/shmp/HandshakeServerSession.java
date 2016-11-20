@@ -25,7 +25,6 @@ import org.jsl.collider.StreamDefragger;
 import org.jsl.collider.TimerQueue;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.CharacterCodingException;
 import java.util.concurrent.TimeUnit;
 
 public class HandshakeServerSession implements Session.Listener
@@ -120,43 +119,35 @@ public class HandshakeServerSession implements Session.Listener
                 }
             }
 
-            final short messageID = Protocol.Message.getMessageID( msg );
-            if (messageID == Protocol.HandshakeRequest.ID)
+            final short messageId = Protocol.Message.getMessageId( msg );
+            if (messageId == Protocol.HandshakeRequest.ID)
             {
                 final short protocolVersion = Protocol.HandshakeRequest.getProtocolVersion(msg);
                 if (protocolVersion == Protocol.VERSION)
                 {
-                    try
-                    {
-                        short tableHeight = Protocol.HandshakeRequest.getDesiredTableHeight( msg );
-                        final String clientDeviceId = Protocol.HandshakeRequest.getDeviceId( msg );
-                        final String clientPlayerName = Protocol.HandshakeRequest.getPlayerName( msg );
-                        Log.i( LOG_TAG, m_session.getRemoteAddress() +
-                                ": handshake ok: playerName=[" + clientPlayerName + "]" );
+                    short tableHeight = Protocol.HandshakeRequest.getDesiredTableHeight( msg );
+                    final String clientDeviceId = Protocol.HandshakeRequest.getDeviceId( msg );
+                    final String clientPlayerName = Protocol.HandshakeRequest.getPlayerName( msg );
+                    Log.i( LOG_TAG, m_session.getRemoteAddress() +
+                            ": handshake ok: playerName=[" + clientPlayerName + "]" );
 
-                        if (m_desiredTableHeight < tableHeight)
-                            tableHeight = m_desiredTableHeight;
+                    if (m_desiredTableHeight < tableHeight)
+                        tableHeight = m_desiredTableHeight;
 
-                        /* Send reply first to be sure other side will receive
-                         * HandshakeReplyOk before anything else.
-                         */
-                        final ByteBuffer handshakeReply = Protocol.HandshakeReplyOk.create(tableHeight, m_ballRadius, m_caps);
-                        m_session.sendData( handshakeReply );
+                    /* Send reply first to be sure other side will receive
+                     * HandshakeReplyOk before anything else.
+                     */
+                    final ByteBuffer handshakeReply = Protocol.HandshakeReplyOk.create(tableHeight, m_ballRadius, m_caps);
+                    m_session.sendData( handshakeReply );
 
-                        final GameServerSession gameServerSession = new GameServerSession(
-                                m_session,
-                                m_streamDefragger,
-                                m_pingConfig,
-                                m_view );
+                    final GameServerSession gameServerSession = new GameServerSession(
+                            m_session,
+                            m_streamDefragger,
+                            m_pingConfig,
+                            m_view );
 
-                        m_session.replaceListener( gameServerSession );
-                        m_view.onClientConnected( gameServerSession, tableHeight, clientDeviceId, clientPlayerName );
-                    }
-                    catch (final CharacterCodingException ex)
-                    {
-                        Log.e( LOG_TAG, m_session.getRemoteAddress() + ": " + ex.toString() );
-                        m_session.closeConnection();
-                    }
+                    m_session.replaceListener( gameServerSession );
+                    m_view.onClientConnected( gameServerSession, tableHeight, clientDeviceId, clientPlayerName );
                 }
                 else
                 {
@@ -165,22 +156,15 @@ public class HandshakeServerSession implements Session.Listener
                             Protocol.VERSION + "-" + protocolVersion + ", close connection." );
 
                     final String statusText = "Protocol version mismatch: " + Protocol.VERSION + "-" + protocolVersion;
-                    try
-                    {
-                        final ByteBuffer handshakeReply = Protocol.HandshakeReplyFail.create( statusText );
-                        m_session.sendData( handshakeReply );
-                    }
-                    catch (final CharacterCodingException ex)
-                    {
-                        Log.i( LOG_TAG, ex.toString() );
-                    }
+                    final ByteBuffer handshakeReply = Protocol.HandshakeReplyFail.create( statusText );
+                    m_session.sendData( handshakeReply );
                     m_session.closeConnection();
                 }
             }
             else
             {
                 Log.i( LOG_TAG, m_session.getRemoteAddress() +
-                        ": unexpected message " + messageID + " received, closing connection." );
+                        ": unexpected message " + messageId + " received, closing connection." );
                 m_session.closeConnection();
             }
         }

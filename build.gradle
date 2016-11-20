@@ -20,6 +20,28 @@ repositories {
     mavenCentral()
 }
 
+project(':prtgen') {
+    apply plugin : 'java'
+}
+
+android.applicationVariants.all { variant ->
+    File infile = new File("src/main/protocol.xml")
+    File outdir = new File("${project.buildDir}/generated/source/protocol/${variant.dirName}")
+    File outfile = new File("${outdir}/org/jsl/shmp/Protocol.java")
+    def generateProtocolTask = task("generateProtocol-${variant.name}") << {
+        def archivePath = project(':prtgen').jar.archivePath
+        javaexec {
+            classpath "$archivePath"
+            main 'org.jsl.prtgen.Main'
+            args = ["${infile}", "${outfile}"]
+        }
+    }
+    generateProtocolTask.dependsOn project(':prtgen').build
+    generateProtocolTask.inputs.file infile
+    generateProtocolTask.outputs.file outfile
+    variant.registerJavaGeneratingTask generateProtocolTask, outdir
+}
+
 dependencies {
     compile 'org.js-labs:js-collider:0.2.0'
 }

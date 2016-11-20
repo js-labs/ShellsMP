@@ -23,9 +23,7 @@ import org.jsl.collider.RetainableByteBuffer;
 import org.jsl.collider.Session;
 import org.jsl.collider.StreamDefragger;
 import org.jsl.collider.TimerQueue;
-
 import java.nio.ByteBuffer;
-import java.nio.charset.CharacterCodingException;
 import java.util.concurrent.TimeUnit;
 
 public class HandshakeClientSession implements Session.Listener
@@ -34,7 +32,7 @@ public class HandshakeClientSession implements Session.Listener
 
     private final GameClientView m_view;
     private final Session m_session;
-    private final PingConfig m_pingConig;
+    private final PingConfig m_pingConfig;
     private final StreamDefragger m_streamDefragger;
     private TimerHandler m_timerHandler;
 
@@ -58,7 +56,7 @@ public class HandshakeClientSession implements Session.Listener
     {
         m_view = view;
         m_session = session;
-        m_pingConig = pingConfig;
+        m_pingConfig = pingConfig;
         m_streamDefragger = GameSession.createStreamDefragger();
 
         final long pingTimeout = pingConfig.timeout;
@@ -70,16 +68,8 @@ public class HandshakeClientSession implements Session.Listener
             timerQueue.schedule( m_timerHandler, pingTimeout, timeUnit );
         }
 
-        try
-        {
-            final ByteBuffer handshakeRequest = Protocol.HandshakeRequest.create( desiredTableHeight, deviceId, playerName );
-            session.sendData( handshakeRequest );
-        }
-        catch (final CharacterCodingException ex)
-        {
-            Log.w( LOG_TAG, ex.toString() );
-            session.closeConnection();
-        }
+        final ByteBuffer handshakeRequest = Protocol.HandshakeRequest.create(Protocol.VERSION, desiredTableHeight, deviceId, playerName);
+        session.sendData( handshakeRequest );
     }
 
     public void onDataReceived( RetainableByteBuffer data )
@@ -103,7 +93,7 @@ public class HandshakeClientSession implements Session.Listener
                 boolean interrupted = false;
                 try
                 {
-                    final TimerQueue timerQueue = m_pingConig.timerQueue;
+                    final TimerQueue timerQueue = m_pingConfig.timerQueue;
                     if (timerQueue.cancel(m_timerHandler) != 0)
                     {
                         /* timer fired, session is being closed,
@@ -123,8 +113,8 @@ public class HandshakeClientSession implements Session.Listener
                 }
             }
 
-            final short messageID = Protocol.Message.getMessageID( msg );
-            if (messageID == Protocol.HandshakeReplyOk.ID)
+            final short messageId = Protocol.Message.getMessageId( msg );
+            if (messageId == Protocol.HandshakeReplyOk.ID)
             {
                 final short virtualTableHeight = Protocol.HandshakeReplyOk.getTableHeight( msg );
                 final short virtualBallRadius = Protocol.HandshakeReplyOk.getBallRadius( msg );
@@ -132,21 +122,20 @@ public class HandshakeClientSession implements Session.Listener
 
                 final GameClientSession gameClientSession = new GameClientSession(
                         m_session,
-                        m_streamDefragger,
-                        m_pingConig,
+                        m_streamDefragger, m_pingConfig,
                         m_view );
 
                 m_session.replaceListener( gameClientSession );
                 m_view.onConnected( gameClientSession, virtualTableHeight, virtualBallRadius );
             }
-            else if (messageID == Protocol.HandshakeReplyFail.ID)
+            else if (messageId == Protocol.HandshakeReplyFail.ID)
             {
 
             }
             else
             {
                 Log.i( LOG_TAG, m_session.getRemoteAddress() +
-                        ": unexpected message " + messageID + " received, closing connection." );
+                        ": unexpected message " + messageId + " received, closing connection." );
                 m_session.closeConnection();
             }
         }
@@ -161,7 +150,7 @@ public class HandshakeClientSession implements Session.Listener
         {
             try
             {
-                final TimerQueue timerQueue = m_pingConig.timerQueue;
+                final TimerQueue timerQueue = m_pingConfig.timerQueue;
                 timerQueue.cancel( m_timerHandler );
             }
             catch (final InterruptedException ex)

@@ -47,14 +47,14 @@ public class GameServerActivity extends GameActivity
 
         final String deviceId = (String) getIntent().getSerializableExtra( MainActivity.EXTRA_DEVICE_ID );
         final String playerName = (String) getIntent().getSerializableExtra( MainActivity.EXTRA_PLAYER_NAME );
-        final Integer gameTime = (Integer) getIntent().getSerializableExtra( MainActivity.EXTRA_GAME_TIME );
-        final Integer caps = (Integer) getIntent().getSerializableExtra( MainActivity.EXTRA_CAPS );
+        final Short gameTime = (Short) getIntent().getSerializableExtra( MainActivity.EXTRA_GAME_TIME );
+        final Short caps = (Short) getIntent().getSerializableExtra( MainActivity.EXTRA_CAPS );
 
         Log.d(LOG_TAG, "onCreate: deviceId=[" + deviceId +
                 "] playerName=[" + playerName + "] gameTime=" + gameTime + " caps=" + caps);
 
-        m_view = new GameServerView( this, deviceId, playerName, gameTime, caps, (NsdManager) getSystemService(Context.NSD_SERVICE) );
-        setContentView( m_view );
+        m_view = new GameServerView(this, deviceId, playerName, gameTime, caps, (NsdManager) getSystemService(Context.NSD_SERVICE));
+        setContentView(m_view);
 
         m_pause = false;
     }
@@ -62,7 +62,7 @@ public class GameServerActivity extends GameActivity
     public void onDestroy()
     {
         super.onDestroy();
-        Log.d( LOG_TAG, "onDestroy" );
+        Log.d(LOG_TAG, "onDestroy");
     }
 
     public void onResume()
