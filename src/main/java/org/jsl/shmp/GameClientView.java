@@ -111,19 +111,19 @@ public class GameClientView extends GameView
             m_visible = false;
         }
 
-        public void updateMatrix( float x, float y, float radius, float [] viewPosition, float [] tmp )
+        public void updateMatrix( float x, float y, float radius, float [] eyePosition, float [] tmp )
         {
             m_visible = true;
             m_x = x;
             m_y = y;
-            updateMatrix( radius, viewPosition, tmp );
+            updateMatrix( radius, eyePosition, tmp );
         }
 
-        public void updateMatrix( float radius, float [] viewPosition, float [] tmp )
+        public void updateMatrix( float radius, float [] eyePosition, float [] tmp )
         {
             Vector.set( tmp, 0, /*x*/0f, /*y*/0f, /*z*/1f );
-            Vector.crossProduct( tmp, 48, tmp, 0, viewPosition, 0 );
-            final float angle = (float) Math.asin( Vector.length(tmp, 48) / Vector.length(viewPosition, 0) );
+            Vector.crossProduct( tmp, 48, tmp, 0, eyePosition, 0 );
+            final float angle = (float) Math.asin( Vector.length(tmp, 48) / Vector.length(eyePosition, 0) );
 
             Matrix.setIdentityM( tmp, 0 );
             Matrix.translateM( tmp, 0, m_x, m_y, radius );
@@ -262,9 +262,9 @@ public class GameClientView extends GameView
         Matrix.setRotateM( m_tableMatrix, 16, angleX, 1f, 0f, 0f );
         Matrix.setRotateM( m_tableMatrix, 32, angleZ, 0f, 0f, 1f );
         Matrix.multiplyMM( m_tableMatrix, 0, m_tableMatrix, 32, m_tableMatrix, 16 );
-        m_viewPosition[0] = m_viewDistance * m_tableMatrix[8];
-        m_viewPosition[1] = m_viewDistance * m_tableMatrix[9];
-        m_viewPosition[2] = m_viewDistance * m_tableMatrix[10];
+        m_eyePosition[0] = m_viewDistance * m_tableMatrix[8];
+        m_eyePosition[1] = m_viewDistance * m_tableMatrix[9];
+        m_eyePosition[2] = m_viewDistance * m_tableMatrix[10];
         final float upX = m_tableMatrix[4];
         final float upY = m_tableMatrix[5];
         final float upZ = m_tableMatrix[6];
@@ -278,18 +278,18 @@ public class GameClientView extends GameView
                 /*far*/     viewWidth*4+50 );
 
         Matrix.setLookAtM( m_tableMatrix, 32,
-                /*eye X*/    m_viewPosition[0],
-                /*eye Y*/    m_viewPosition[1],
-                /*eye Z*/    m_viewPosition[2],
-                /*center X*/ 0f,
-                /*center Y*/ 0f,
-                /*center Z*/ 0f,
-                /*up X*/     upX,
-                /*up Y*/     upY,
-                /*up Z*/     upZ );
+              /*eye X*/    m_eyePosition[0],
+              /*eye Y*/    m_eyePosition[1],
+              /*eye Z*/    m_eyePosition[2],
+              /*center X*/ 0.0f,
+              /*center Y*/ 0.0f,
+              /*center Z*/ 0.0f,
+              /*up X*/     upX,
+              /*up Y*/     upY,
+              /*up Z*/     upZ );
         Matrix.multiplyMM( m_tableMatrix, 0, m_tableMatrix, 16, m_tableMatrix, 32 );
 
-        m_ball.updateMatrix( m_ballRadius, m_viewPosition, m_tmpMatrix );
+        m_ball.updateMatrix( m_ballRadius, m_eyePosition, m_tmpMatrix );
     }
 
     private void onTouchEventRT( float touchX, float touchY, int frameId )
@@ -313,7 +313,7 @@ public class GameClientView extends GameView
                 final float dy = (screenY - touchY);
                 if (Math.sqrt( dx * dx + dy * dy ) <= m_ballRadius)
                 {
-                    final float d = m_viewDistance - (m_viewPosition[0]*cap.getX() + m_viewPosition[1]*cap.getY() + m_viewPosition[2]*cap.getZ()) / m_viewDistance;
+                    final float d = m_viewDistance - (m_eyePosition[0]*cap.getX() + m_eyePosition[1]*cap.getY() + m_eyePosition[2]*cap.getZ()) / m_viewDistance;
                     if ((touchCapIdx < 0) || (d < distance))
                     {
                         touchCapIdx = idx;
@@ -346,7 +346,7 @@ public class GameClientView extends GameView
                 found = false;
             }
 
-            m_ball.updateMatrix( cap.getX(), cap.getY(), m_ballRadius, m_viewPosition, m_tmpMatrix );
+            m_ball.updateMatrix( cap.getX(), cap.getY(), m_ballRadius, m_eyePosition, m_tmpMatrix );
 
             final ByteBuffer msg = Protocol.GuessReply.create( found );
             m_session.sendMessage( msg );
@@ -400,7 +400,7 @@ public class GameClientView extends GameView
     private boolean m_pause;
     private long m_renderThreadId;
     private float m_viewDistance;
-    private final float [] m_viewPosition;
+    private final float [] m_eyePosition;
     private float m_scale;
     private float m_tableWidth;
     private float m_tableHeight;
@@ -442,7 +442,7 @@ public class GameClientView extends GameView
         m_serverDeviceId = serverDeviceId;
         m_serverPlayerName = serverPlayerName;
         m_tmpMatrix = new float[16*5];
-        m_viewPosition = new float[3];
+        m_eyePosition = new float[3];
         m_timerManager = new TimerManager();
         m_state = STATE_WATCH;
     }
@@ -481,7 +481,7 @@ public class GameClientView extends GameView
 
         if (m_table != null)
         {
-            m_table.draw( m_tableMatrix );
+            m_table.draw( m_tableMatrix, m_light, m_eyePosition );
             m_ball.draw( m_tableMatrix, m_light, m_tmpMatrix );
             for (Cap cap : m_cap)
                 cap.draw( m_tableMatrix, m_light, m_tmpMatrix );
@@ -524,9 +524,9 @@ public class GameClientView extends GameView
         if (m_bottomLineY < bottomHeight2)
             m_bottomLineY = bottomHeight2;
 
-        m_light[0] = (-viewWidth/4);  /*x*/
-        m_light[1] = (-viewWidth/4);  /*y*/
-        m_light[2] = (viewWidth * 2); /*z*/
+        m_light[0] = (-viewWidth/4);     /*x*/
+        m_light[1] = (-viewWidth/4);     /*y*/
+        m_light[2] = (viewWidth / 2.0f); /*z*/
         m_light[3] = 1.0f; /*r*/
         m_light[4] = 1.0f; /*g*/
         m_light[5] = 1.0f; /*b*/
@@ -724,7 +724,7 @@ public class GameClientView extends GameView
         final float y = -(virtualY * m_scale);
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                m_ball.updateMatrix( x, y, m_ballRadius, m_viewPosition, m_tmpMatrix );
+                m_ball.updateMatrix( x, y, m_ballRadius, m_eyePosition, m_tmpMatrix );
                 return false;
             }
         } );

@@ -306,6 +306,7 @@ public class GameServerView extends GameView
     private final HashMap<Integer, Cap> m_capByPointer;
 
     private float [] m_light;
+    private float [] m_eyePosition;
     private Table m_table;
     private RectF m_tableRect;
     private RectF m_tableRectEx;
@@ -565,12 +566,14 @@ public class GameServerView extends GameView
              * [3-5] : color
              */
             m_light = new float[6];
-            m_light[0] = -(width / 4f);      /*x*/
-            m_light[1] = (height / 4f * 3f); /*y*/
-            m_light[2] = 200f;               /*z*/
+            m_light[0] = -(width / 4f); /*x*/
+            m_light[1] = (height / 2f); /*y*/
+            m_light[2] = (width * 4f);  /*z*/
             m_light[3] = 1.0f; /*r*/
             m_light[4] = 1.0f; /*g*/
             m_light[5] = 1.0f; /*b*/
+
+            m_eyePosition = new float [] { 0.0f, 0.0f, 100.0f };
 
             final Context context = getContext();
             m_table = new Table( context );
@@ -618,7 +621,7 @@ public class GameServerView extends GameView
                     Canvas3D.s_identityMatrix, 0,
                     tableWidth/2, viewHeight - getTopReservedHeight() - 1 - tableHeight/2, 0f );
             Matrix.multiplyMM( m_tmpMatrix, 0, vpMatrix, 0, m_tmpMatrix, 16 );
-            m_table.draw( m_tmpMatrix );
+            m_table.draw( /*mvpMatrix*/m_tmpMatrix, m_light, m_eyePosition );
 
             m_ball.draw( vpMatrix, m_light, m_tmpMatrix );
 
