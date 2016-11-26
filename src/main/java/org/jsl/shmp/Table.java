@@ -105,7 +105,7 @@ public class Table
         final float blue = ((float)Color.blue(color)) / 255f;
         GLES20.glUniform3f(m_colorLocation, red, green, blue);
 
-        GLES20.glUniform3fv(m_lightLocation, 6, light, 0);
+        GLES20.glUniform3fv(m_lightLocation, 2, light, 0);
         GLES20.glUniform3f(m_eyePositionLocation, eyePosition[0], eyePosition[1], eyePosition[2]);
         GLES20.glUniform2f(m_meshLocation, m_meshX, m_meshY);
 
