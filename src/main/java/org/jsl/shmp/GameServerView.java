@@ -737,13 +737,13 @@ public class GameServerView extends GameView
     public void showGuessReplyCT( boolean found )
     {
         m_state = STATE_FINISHED;
-        m_win = (found ? 1 : 0);
+        m_win = (found ? 0 : 1);
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
                 if (m_win > 0)
-                    setBottomLineText( R.string.you_win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
+                    setBottomLineText(R.string.you_win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE);
                 else
-                    setBottomLineText( R.string.you_lose, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
+                    setBottomLineText(R.string.you_lose, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE);
                 return false;
             }
         } );

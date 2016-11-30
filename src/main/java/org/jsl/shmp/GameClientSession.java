@@ -18,6 +18,7 @@
  */
 package org.jsl.shmp;
 
+import android.util.Log;
 import org.jsl.collider.RetainableByteBuffer;
 import org.jsl.collider.Session;
 import org.jsl.collider.StreamDefragger;
@@ -41,18 +42,42 @@ public class GameClientSession extends GameSession
         switch (messageID)
         {
             case Protocol.DragBall.ID:
-                m_view.dragBallCT( Protocol.DragBall.getX(msg), Protocol.DragBall.getY(msg) );
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.DragBall.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
+                m_view.dragBallCT(Protocol.DragBall.getX(msg), Protocol.DragBall.getY(msg));
             break;
 
             case Protocol.PutBall.ID:
-                m_view.putBallCT( Protocol.PutBall.getX(msg), Protocol.PutBall.getY(msg) );
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.PutBall.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
+                m_view.putBallCT(Protocol.PutBall.getX(msg), Protocol.PutBall.getY(msg));
             break;
 
             case Protocol.RemoveBall.ID:
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.RemoveBall.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
                 m_view.removeBallCT();
             break;
 
             case Protocol.DragCap.ID:
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.DragCap.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
                 m_view.setCapPositionCT(
                         Protocol.DragCap.getId(msg),
                         Protocol.DragCap.getX(msg),
@@ -61,6 +86,12 @@ public class GameClientSession extends GameSession
             break;
 
             case Protocol.PutCap.ID:
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.PutCap.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
                 m_view.putCapCT(
                         Protocol.PutCap.getId(msg),
                         Protocol.PutCap.getX(msg),
@@ -69,10 +100,22 @@ public class GameClientSession extends GameSession
             break;
 
             case Protocol.RemoveCap.ID:
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.RemoveCap.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
                 m_view.removeCapCT( Protocol.RemoveCap.getId(msg) );
             break;
 
             case Protocol.Guess.ID:
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.Guess.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
                 m_view.guessCT( Protocol.Guess.getCapWithBall(msg) );
             break;
 

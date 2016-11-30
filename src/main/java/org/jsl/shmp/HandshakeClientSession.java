@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 public class HandshakeClientSession implements Session.Listener
 {
     private static final String LOG_TAG = HandshakeClientSession.class.getSimpleName();
+    private static final String LOG_PROTOCOL = "Protocol";
 
     private final GameClientView m_view;
     private final Session m_session;
@@ -116,6 +117,13 @@ public class HandshakeClientSession implements Session.Listener
             final short messageId = Protocol.Message.getMessageId( msg );
             if (messageId == Protocol.HandshakeReplyOk.ID)
             {
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.HandshakeReplyOk.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
+
                 final short virtualTableHeight = Protocol.HandshakeReplyOk.getTableHeight( msg );
                 final short virtualBallRadius = Protocol.HandshakeReplyOk.getBallRadius( msg );
                 Log.i( LOG_TAG, m_session.getRemoteAddress() + ": handshake reply ok" );
@@ -130,7 +138,12 @@ public class HandshakeClientSession implements Session.Listener
             }
             else if (messageId == Protocol.HandshakeReplyFail.ID)
             {
-
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.HandshakeReplyFail.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
             }
             else
             {

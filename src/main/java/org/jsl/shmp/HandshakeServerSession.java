@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 public class HandshakeServerSession implements Session.Listener
 {
     private static final String LOG_TAG = HandshakeServerSession.class.getSimpleName();
+    private static final String LOG_PROTOCOL = "Protocol";
 
     private final GameServerView m_view;
     private final Session m_session;
@@ -122,6 +123,13 @@ public class HandshakeServerSession implements Session.Listener
             final short messageId = Protocol.Message.getMessageId( msg );
             if (messageId == Protocol.HandshakeRequest.ID)
             {
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.HandshakeRequest.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
+
                 final short protocolVersion = Protocol.HandshakeRequest.getProtocolVersion(msg);
                 if (protocolVersion == Protocol.VERSION)
                 {

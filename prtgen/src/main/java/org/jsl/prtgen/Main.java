@@ -575,6 +575,29 @@ public class Main
                 }
             }
 
+            sb.append("\n");
+            sb.append(INDENT2 + "static void print(StringBuilder sb, RetainableByteBuffer msg)\n");
+            sb.append(INDENT2 + "{\n");
+            sb.append(INDENT2 + "    sb.append(\"[" + m_name.getValue() +
+                    "] (size=\" + Message.getMessageSize(msg) + \") = {");
+            if (fields.isEmpty())
+            {
+                sb.append("}\\n\");\n");
+            }
+            else
+            {
+                sb.append("\\n\");\n");
+                for (Field f : fields)
+                {
+                    sb.append(INDENT2 + "    sb.append(\"    <" + f.getFieldName() + "> (" +
+                            f.getFieldType().getJavaType() + ") = \");\n");
+                    sb.append(INDENT2 + "    sb.append(get" + getFieldNameCL(f.getFieldName()) + "(msg));\n");
+                    sb.append(INDENT2 + "    sb.append(\"\\n\");\n");
+                }
+                sb.append(INDENT2 + "    sb.append(\"}\\n\");\n");
+            }
+            sb.append(INDENT2 + "}\n");
+
             sb.append(INDENT1 + "}\n");
         }
     }
@@ -655,6 +678,10 @@ public class Main
             sb.append("            return msg;\n");
             sb.append("        }\n\n");
             sb.append("        public static " + messageSizeType.getJavaType() + " getMessageSize(ByteBuffer msg)\n");
+            sb.append("        {\n");
+            sb.append("            return msg.get" + messageSizeType.getGetSuffix() + "(msg.position());\n");
+            sb.append("        }\n\n");
+            sb.append("        public static " + messageSizeType.getJavaType() + " getMessageSize(RetainableByteBuffer msg)\n");
             sb.append("        {\n");
             sb.append("            return msg.get" + messageSizeType.getGetSuffix() + "(msg.position());\n");
             sb.append("        }\n\n");

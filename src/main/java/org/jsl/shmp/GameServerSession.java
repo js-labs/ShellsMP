@@ -18,6 +18,7 @@
  */
 package org.jsl.shmp;
 
+import android.util.Log;
 import org.jsl.collider.RetainableByteBuffer;
 import org.jsl.collider.Session;
 import org.jsl.collider.StreamDefragger;
@@ -36,12 +37,18 @@ public class GameServerSession extends GameSession
         m_view = view;
     }
 
-    public int onMessageReceived( int messageID, RetainableByteBuffer msg )
+    public int onMessageReceived(int messageID, RetainableByteBuffer msg)
     {
         switch (messageID)
         {
             case Protocol.GuessReply.ID:
-                m_view.showGuessReplyCT( Protocol.GuessReply.getFound(msg) );
+                if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                {
+                    final StringBuilder sb = new StringBuilder();
+                    Protocol.GuessReply.print(sb, msg);
+                    Log.v(LOG_PROTOCOL, sb.toString());
+                }
+                m_view.showGuessReplyCT(Protocol.GuessReply.getFound(msg));
             break;
         }
         return 0;

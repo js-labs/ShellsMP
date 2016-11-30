@@ -30,6 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
 abstract class GameSession implements Session.Listener
 {
     private static final String LOG_TAG = GameSession.class.getSimpleName();
+    protected static final String LOG_PROTOCOL = "Protocol";
 
     private static final AtomicIntegerFieldUpdater<GameSession> s_bytesReceivedUpdater =
             AtomicIntegerFieldUpdater.newUpdater( GameSession.class, "m_bytesReceived" );
@@ -170,6 +171,13 @@ abstract class GameSession implements Session.Listener
                 final int messageID = Protocol.Message.getMessageId( msg );
                 if (messageID == Protocol.Ping.ID)
                 {
+                    if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                    {
+                        final StringBuilder sb = new StringBuilder();
+                        Protocol.Ping.print(sb, msg);
+                        Log.v(LOG_PROTOCOL, sb.toString());
+                    }
+
                     final int sequenceNumber = Protocol.Ping.getSequenceNumber( msg );
                     final RetainableByteBuffer pong = Protocol.Pong.create( m_byteBufferPool, sequenceNumber );
                     m_session.sendData( pong );
@@ -177,6 +185,13 @@ abstract class GameSession implements Session.Listener
                 }
                 else if (messageID == Protocol.Pong.ID)
                 {
+                    if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
+                    {
+                        final StringBuilder sb = new StringBuilder();
+                        Protocol.Pong.print(sb, msg);
+                        Log.v(LOG_PROTOCOL, sb.toString());
+                    }
+
                     long ping = -1;
                     final int sequenceNumber = Protocol.Pong.getSequenceNumber( msg );
                     m_lock.lock();
