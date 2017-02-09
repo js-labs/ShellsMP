@@ -23,6 +23,14 @@ import android.opengl.Matrix;
 
 class ShadowObject
 {
+    public static final float [] MATRIX_BIAS =
+    {
+        0.5f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.5f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.5f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f
+    };
+
     public final int frameBufferId;
     public final int textureId;
     public final int mapSize;
@@ -94,7 +102,7 @@ class ShadowObject
 
             final float [] matrix = new float[16 * 2];
             Matrix.multiplyMM(matrix, 0, tmp, 4, tmp, 20);
-            Matrix.multiplyMM(matrix, 16, Canvas3D.SHADOW_MATRIX_BIAS, 0, matrix, 0);
+            Matrix.multiplyMM(matrix, 16, MATRIX_BIAS, 0, matrix, 0);
 
             return new ShadowObject(frameBufferId, textureId, shadowMapSize, matrix);
         }

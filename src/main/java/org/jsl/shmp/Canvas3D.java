@@ -31,14 +31,6 @@ import java.nio.FloatBuffer;
 
 public class Canvas3D
 {
-    public static final float [] SHADOW_MATRIX_BIAS =
-    {
-        0.5f, 0.0f, 0.0f, 0.0f,
-        0.0f, 0.5f, 0.0f, 0.0f,
-        0.0f, 0.0f, 0.5f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f
-    };
-
     public static final float [] s_identityMatrix = createIdentityMatrix();
     private static final float [] s_matrix = new float[32];
 
