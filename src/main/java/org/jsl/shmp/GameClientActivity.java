@@ -89,6 +89,6 @@ public class GameClientActivity extends GameActivity
     public void onDestroy()
     {
         super.onDestroy();
-        Log.d( LOG_TAG, "onDestroy" );
+        Log.d(LOG_TAG, "onDestroy");
     }
 }

@@ -96,56 +96,87 @@ public class GameClientView extends GameView
         }
     }
 
-    private static class Ball
+    public static class Ball
     {
+        private static final int MODEL = 0;
+        private static final int MODEL_INVERTED = 16;
+        private static final int SHADOW = 32;
+
         private final ModelBall m_model;
         private final float [] m_matrix;
         private boolean m_visible;
         private float m_x;
         private float m_y;
+        private float m_z;
 
-        public Ball( ModelBall model )
+        private static void orientMatrixTo(float [] m, int offset, float [] to, int toOffset, float [] tmp, int tmpOffset)
         {
-            m_model = model;
-            m_matrix = new float[16];
+            Vector.set(tmp, tmpOffset, /*x*/0f, /*y*/0f, /*z*/1f);
+            Vector.crossProduct(tmp, tmpOffset+4, tmp, tmpOffset, to, toOffset);
+            final double angle = (Math.asin(Vector.length(tmp, tmpOffset+4) / Vector.length(to, toOffset)) * 180d / Math.PI);
+            Matrix.setRotateM(m, offset, (float)angle, tmp[tmpOffset+4], tmp[tmpOffset+4+1], tmp[tmpOffset+4+2]);
+        }
+
+        public Ball(Context context, int color) throws IOException
+        {
+            m_model = new ModelBall(context, color);
+            m_matrix = new float[16*3];
             m_visible = false;
         }
 
-        public void updateMatrix( float x, float y, float radius, float [] eyePosition, float [] tmp )
+        public void updateMatrix(float x, float y, float z, float radius, Vector eyePosition, Vector light, float [] tmp)
         {
             m_visible = true;
             m_x = x;
             m_y = y;
-            updateMatrix( radius, eyePosition, tmp );
+            m_z = z;
+
+            updateMatrix(radius, eyePosition, tmp);
+
+            // shadow model matrix = [translate matrix] x [orient matrix] x [scale matrix]
+            Vector.set(tmp, 16, light.getX()-m_x, light.getY()-m_y, light.getZ()-m_z);
+            orientMatrixTo(tmp, 0, tmp, 16, tmp, 20);
+            Matrix.setIdentityM(tmp, 16);
+            Matrix.scaleM(tmp, 16, radius, radius, radius);
+            Matrix.multiplyMM(tmp, 32, tmp, 0, tmp, 16);
+            Matrix.setIdentityM(tmp, 0);
+            Matrix.translateM(tmp, 0, m_x, m_y, m_z);
+            Matrix.multiplyMM(m_matrix, SHADOW, tmp, 0, tmp, 32);
         }
 
-        public void updateMatrix( float radius, float [] eyePosition, float [] tmp )
+        public void updateMatrix(float radius, Vector eyePosition, float [] tmp)
         {
-            Vector.set( tmp, 0, /*x*/0f, /*y*/0f, /*z*/1f );
-            Vector.crossProduct( tmp, 48, tmp, 0, eyePosition, 0 );
-            final float angle = (float) Math.asin( Vector.length(tmp, 48) / Vector.length(eyePosition, 0) );
-
-            Matrix.setIdentityM( tmp, 0 );
-            Matrix.translateM( tmp, 0, m_x, m_y, radius );
-            Matrix.setIdentityM( tmp, 16 );
-            Matrix.scaleM( tmp, 16, radius, radius, radius );
-            Matrix.multiplyMM( tmp, 32, tmp, 0, tmp, 16 );
-            Matrix.setRotateM( tmp, 0, (float) (angle*180f/Math.PI), tmp[48], tmp[49], tmp[50] );
-            Matrix.multiplyMM( m_matrix, 0, tmp, 32, tmp, 0 );
+            // model matrix = [translate matrix] x [orient matrix] x [scale matrix]
+            Vector.set(tmp, 16, eyePosition.getX()-m_x, eyePosition.getY()-m_y, eyePosition.getZ()-m_z);
+            orientMatrixTo(tmp, 0, tmp, 16, tmp, 19);
+            Matrix.setIdentityM(tmp, 16);
+            Matrix.scaleM(tmp, 16, radius, radius, radius);
+            Matrix.multiplyMM(tmp, 32, tmp, 0, tmp, 16);
+            Matrix.setIdentityM(tmp, 0);
+            Matrix.translateM(tmp, 0, m_x, m_y, m_z);
+            Matrix.multiplyMM(m_matrix, MODEL, tmp, 0, tmp, 32);
+            Matrix.invertM(m_matrix, MODEL_INVERTED, m_matrix, MODEL);
         }
 
-        public void draw( float [] vpMatrix, float [] light, float [] tmp )
+        public void draw(float [] vpMatrix, Vector light, float [] tmp)
         {
             if (m_visible)
             {
-                Matrix.multiplyMM( tmp, 0, vpMatrix, 0, m_matrix, 0 );
+                Matrix.multiplyMM(tmp, 0, vpMatrix, 0, m_matrix, MODEL);
+                Matrix.multiplyMV(tmp, 16, m_matrix, MODEL_INVERTED, light.v, light.offs);
+                tmp[16+3] = light.v[light.offs+4];
+                tmp[16+4] = light.v[light.offs+5];
+                tmp[16+5] = light.v[light.offs+6];
+                m_model.draw(tmp, 0, tmp, 16);
+            }
+        }
 
-                /* tmp[16-19] : light direction */
-                tmp[16] = (light[0] - m_x);
-                tmp[17] = (light[1] - m_y);
-                tmp[18] = light[2];
-
-                m_model.draw( tmp, 0, tmp, 16, light, 3 );
+        public void drawShadow(float [] vpMatrix, int vpMatrixOffset, float [] tmp)
+        {
+            if (m_visible)
+            {
+                Matrix.multiplyMM(tmp, 0, vpMatrix, vpMatrixOffset, m_matrix, SHADOW);
+                m_model.drawShadow(tmp, 0);
             }
         }
 
@@ -155,9 +186,9 @@ public class GameClientView extends GameView
         }
     }
 
-    private static class Cap
+    public static class Cup
     {
-        private final Model m_model;
+        private final ModelCup m_model;
         private final float [] m_matrix;
         private boolean m_visible;
         private float m_x;
@@ -167,21 +198,22 @@ public class GameClientView extends GameView
         private float m_lastFrameX;
         private float m_lastFrameY;
 
-        public Cap( Model model )
+        public Cup(ModelCup model)
         {
             m_model = model;
-            m_matrix = new float[16];
+            m_matrix = new float[16*2];
             m_visible = false;
             m_lastFrameId = -1;
         }
 
-        public boolean updateMatrix( float x, float y, float z, float radius, int frameId, float [] tmp )
+        public boolean updateMatrix(float x, float y, float z, float radius, int frameId, float [] tmp)
         {
-            Matrix.setIdentityM( tmp, 0 );
-            Matrix.translateM( tmp, 0, x, y, z );
-            Matrix.setIdentityM( tmp, 16 );
-            Matrix.scaleM( tmp, 16, radius, radius, radius );
-            Matrix.multiplyMM( m_matrix, 0, tmp, 0, tmp, 16 );
+            Matrix.setIdentityM(tmp, 0);
+            Matrix.translateM(tmp, 0, x, y, z);
+            Matrix.setIdentityM(tmp, 16);
+            Matrix.scaleM(tmp, 16, radius, radius, radius);
+            Matrix.multiplyMM(m_matrix, 0, tmp, 0, tmp, 16);
+            Matrix.invertM(m_matrix, 16, m_matrix, 0);
             m_visible = true;
             m_x = x;
             m_y = y;
@@ -205,17 +237,29 @@ public class GameClientView extends GameView
             return false;
         }
 
-        public void draw( float [] vpMatrix, float [] lightPosition, float [] tmp )
+        public void draw(float [] vpMatrix, Vector eyePosition, Vector light, ShadowObject shadowObject, float [] tmp)
         {
             if (m_visible)
             {
-                Matrix.multiplyMM( tmp, 0, vpMatrix, 0, m_matrix, 0 );
+                final float [] shadowMatrix = shadowObject.matrix;
+                final int shadowTextureId = shadowObject.textureId;
+                Matrix.multiplyMM(tmp, 0, vpMatrix, 0, m_matrix, 0);
+                Matrix.multiplyMV(tmp, 16, m_matrix, 16, eyePosition.v, eyePosition.offs);
+                Matrix.multiplyMV(tmp, 20, m_matrix, 16, light.v, light.offs);
+                Matrix.multiplyMM(tmp, 32, shadowMatrix, 16, m_matrix, 0);
+                tmp[20+3] = light.get(4);
+                tmp[20+4] = light.get(5);
+                tmp[20+5] = light.get(6);
+                m_model.draw(tmp, 0, tmp, 16, tmp, 20, tmp, 32, shadowTextureId);
+            }
+        }
 
-                tmp[16] = (lightPosition[0] - m_x);
-                tmp[17] = (lightPosition[1] - m_y);
-                tmp[18] = lightPosition[2];
-
-                m_model.draw( tmp, 0, tmp, 16 );
+        public void drawShadow(float [] vpMatrix, int vpMatrixOffset, float [] tmp)
+        {
+            if (m_visible)
+            {
+                Matrix.multiplyMM(tmp, 0, vpMatrix, vpMatrixOffset, m_matrix, 0);
+                m_model.drawShadow(tmp, 0);
             }
         }
 
@@ -246,7 +290,7 @@ public class GameClientView extends GameView
         m_bottomLineStringColor = color;
     }
 
-    private void updateTableViewMatrixRT( float angleX, float angleZ )
+    private void updateTableViewMatrixRT(float angleX, float angleZ)
     {
         if (BuildConfig.DEBUG && (m_renderThreadId != Thread.currentThread().getId()))
             throw new AssertionError();
@@ -259,53 +303,51 @@ public class GameClientView extends GameView
          * 2 6 10 14
          * 3 7 11 15
          */
-        Matrix.setRotateM( m_tableMatrix, 16, angleX, 1f, 0f, 0f );
-        Matrix.setRotateM( m_tableMatrix, 32, angleZ, 0f, 0f, 1f );
-        Matrix.multiplyMM( m_tableMatrix, 0, m_tableMatrix, 32, m_tableMatrix, 16 );
-        m_eyePosition[0] = m_viewDistance * m_tableMatrix[8];
-        m_eyePosition[1] = m_viewDistance * m_tableMatrix[9];
-        m_eyePosition[2] = m_viewDistance * m_tableMatrix[10];
+        Matrix.setRotateM(m_tableMatrix, 16, angleX, 1f, 0f, 0f);
+        Matrix.setRotateM(m_tableMatrix, 32, angleZ, 0f, 0f, 1f);
+        Matrix.multiplyMM(m_tableMatrix, 0, m_tableMatrix, 32, m_tableMatrix, 16);
+        m_eyePosition.set(m_viewDistance * m_tableMatrix[8], m_viewDistance * m_tableMatrix[9], m_viewDistance * m_tableMatrix[10]);
         final float upX = m_tableMatrix[4];
         final float upY = m_tableMatrix[5];
         final float upZ = m_tableMatrix[6];
 
-        Matrix.frustumM( m_tableMatrix, 16,
+        Matrix.frustumM(m_tableMatrix, 16,
                 /*left*/    -viewWidth/2,
                 /*right*/    viewWidth/2,
                 /*bottom*/ -viewHeight/2,
                 /*top*/     viewHeight/2,
                 /*near*/    viewWidth*3-50,
-                /*far*/     viewWidth*4+50 );
+                /*far*/     viewWidth*4+50);
 
-        Matrix.setLookAtM( m_tableMatrix, 32,
-              /*eye X*/    m_eyePosition[0],
-              /*eye Y*/    m_eyePosition[1],
-              /*eye Z*/    m_eyePosition[2],
+        Matrix.setLookAtM(m_tableMatrix, 32,
+              /*eye X*/    m_eyePosition.getX(),
+              /*eye Y*/    m_eyePosition.getY(),
+              /*eye Z*/    m_eyePosition.getZ(),
               /*center X*/ 0.0f,
               /*center Y*/ 0.0f,
               /*center Z*/ 0.0f,
               /*up X*/     upX,
               /*up Y*/     upY,
-              /*up Z*/     upZ );
-        Matrix.multiplyMM( m_tableMatrix, 0, m_tableMatrix, 16, m_tableMatrix, 32 );
+              /*up Z*/     upZ);
+        Matrix.multiplyMM(m_tableMatrix, 0, m_tableMatrix, 16, m_tableMatrix, 32);
 
-        m_ball.updateMatrix( m_ballRadius, m_eyePosition, m_tmpMatrix );
+        m_ball.updateMatrix(m_ballRadius, m_eyePosition, m_tmpMatrix);
     }
 
-    private void onTouchEventRT( float touchX, float touchY, int frameId )
+    private void onTouchEventRT(float touchX, float touchY, int frameId)
     {
         /* executed on render thread */
         int touchCapIdx = -1;
         float distance = 0;
 
-        for (int idx = 0; idx < m_cap.length; idx++)
+        for (int idx = 0; idx < m_cup.length; idx++)
         {
-            final Cap cap = m_cap[idx];
-            if (cap.isVisible())
+            final Cup cup = m_cup[idx];
+            if (cup.isVisible())
             {
-                final float x = cap.getX()*m_tableMatrix[0] + cap.getY()*m_tableMatrix[4] + cap.getZ()*m_tableMatrix[8] + m_tableMatrix[12];
-                final float y = cap.getX()*m_tableMatrix[1] + cap.getY()*m_tableMatrix[5] + cap.getZ()*m_tableMatrix[9] + m_tableMatrix[13];
-                final float w = m_tableMatrix[3] + m_tableMatrix[7] + m_tableMatrix[11] + m_tableMatrix[15];
+                final float x = Vector.getMVX(m_tableMatrix, 0, cup.getX(), cup.getY(), cup.getZ(), 1f);
+                final float y = Vector.getMVY(m_tableMatrix, 0, cup.getX(), cup.getY(), cup.getZ(), 1f);
+                final float w = Vector.getMVW(m_tableMatrix, 0, 1f, 1f, 1f, 1f);
                 final float screenX = ((x/w + 1f) / 2f) * getWidth();
                 final float screenY = (getHeight() - ((y/w + 1f) / 2f) * getHeight());
 
@@ -313,7 +355,7 @@ public class GameClientView extends GameView
                 final float dy = (screenY - touchY);
                 if (Math.sqrt( dx * dx + dy * dy ) <= m_ballRadius)
                 {
-                    final float d = m_viewDistance - (m_eyePosition[0]*cap.getX() + m_eyePosition[1]*cap.getY() + m_eyePosition[2]*cap.getZ()) / m_viewDistance;
+                    final float d = m_viewDistance - (m_eyePosition.getX()*cup.getX() + m_eyePosition.getY()*cup.getY() + m_eyePosition.getZ()*cup.getZ()) / m_viewDistance;
                     if ((touchCapIdx < 0) || (d < distance))
                     {
                         touchCapIdx = idx;
@@ -327,8 +369,8 @@ public class GameClientView extends GameView
         {
             s_stateUpdater.set( this, STATE_FINISHED );
 
-            Cap cap = m_cap[touchCapIdx];
-            cap.updateMatrix( cap.getX(), cap.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix );
+            Cup cup = m_cup[touchCapIdx];
+            cup.updateMatrix( cup.getX(), cup.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix );
 
             boolean found;
 
@@ -341,12 +383,12 @@ public class GameClientView extends GameView
             {
                 setBottomLineText( R.string.you_lose, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
 
-                cap = m_cap[m_capWithBall];
-                cap.updateMatrix( cap.getX(), cap.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix );
+                cup = m_cup[m_capWithBall];
+                cup.updateMatrix( cup.getX(), cup.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix );
                 found = false;
             }
 
-            m_ball.updateMatrix( cap.getX(), cap.getY(), m_ballRadius, m_eyePosition, m_tmpMatrix );
+            m_ball.updateMatrix(cup.getX(), cup.getY(), m_ballRadius, m_ballRadius, m_eyePosition, m_light, m_tmpMatrix);
 
             final ByteBuffer msg = Protocol.GuessReply.create( found );
             m_session.sendMessage( msg );
@@ -400,16 +442,17 @@ public class GameClientView extends GameView
     private boolean m_pause;
     private long m_renderThreadId;
     private float m_viewDistance;
-    private final float [] m_eyePosition;
+    private final Vector m_eyePosition;
     private float m_scale;
     private float m_tableWidth;
     private float m_tableHeight;
+    private Vector m_light;
+    private ShadowObject m_shadowObject;
     private Table m_table;
     private float [] m_tableMatrix;
     private Ball m_ball;
     private float m_ballRadius;
-    private float [] m_light;
-    private Cap [] m_cap;
+    private Cup[] m_cup;
 
     private final TimerManager m_timerManager;
 
@@ -442,21 +485,34 @@ public class GameClientView extends GameView
         m_serverDeviceId = serverDeviceId;
         m_serverPlayerName = serverPlayerName;
         m_tmpMatrix = new float[16*5];
-        m_eyePosition = new float[3];
+        m_eyePosition = new Vector();
         m_timerManager = new TimerManager();
         m_state = STATE_WATCH;
     }
 
-    public void onSurfaceCreated( GL10 gl, EGLConfig config )
+    public void onSurfaceCreated(GL10 gl, EGLConfig config)
     {
-        super.onSurfaceCreated( gl, config );
-        GLES20.glEnable( GLES20.GL_DEPTH_TEST );
+        super.onSurfaceCreated(gl, config);
     }
 
-    public void onSurfaceChanged( GL10 gl, int width, int height )
+    public void onSurfaceChanged(GL10 gl, int width, int height)
     {
         /* Looks like a better place to start all than surfaceCreated() */
-        super.onSurfaceChanged( gl, width, height );
+        super.onSurfaceChanged(gl, width, height);
+
+        final float [] light =
+        {
+            -width/4, // x
+            -width/4, // y
+             width*2, // z
+                  0f, // w
+                  1f, // r
+                  1f, // g
+                  1f  // b
+        };
+
+        m_light = new Vector(light, 0);
+        m_shadowObject = ShadowObject.create(width, m_light, m_tmpMatrix);
 
         try
         {
@@ -467,24 +523,47 @@ public class GameClientView extends GameView
                     getDesiredTableHeight(width, height),
                     getDeviceId(),
                     getPlayerName() );
-            collider.addConnector( connector );
+            collider.addConnector(connector);
         }
         catch (final IOException ex)
         {
-            Log.e( LOG_TAG, ex.toString() );
+            Log.e(LOG_TAG, ex.toString(), ex);
         }
     }
 
-    public void onDrawFrame( float [] vpMatrix, Canvas3D canvas3D )
+    public void onDrawFrame(float [] vpMatrix, Canvas3D canvas3D)
     {
-        super.onDrawFrame( vpMatrix, canvas3D );
+        super.onDrawFrame(vpMatrix, canvas3D);
 
         if (m_table != null)
         {
-            m_table.draw( m_tableMatrix, m_light, m_eyePosition );
-            m_ball.draw( m_tableMatrix, m_light, m_tmpMatrix );
-            for (Cap cap : m_cap)
-                cap.draw( m_tableMatrix, m_light, m_tmpMatrix );
+            final float [] tmp = m_tmpMatrix;
+
+            if (m_shadowObject != null)
+            {
+                final int frameBufferId = m_shadowObject.frameBufferId;
+                final int mapSize = m_shadowObject.mapSize;
+                final int viewWidth = getWidth();
+                final int viewHeight = getHeight();
+
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBufferId);
+                GLES20.glViewport(0, 0, mapSize, mapSize);
+
+                GLES20.glClearColor(0f, 0f, 0f, 1f);
+                GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT|GLES20.GL_COLOR_BUFFER_BIT);
+
+                m_ball.drawShadow(m_shadowObject.matrix, 0, tmp);
+                for (Cup cup : m_cup)
+                    cup.drawShadow(m_shadowObject.matrix, 0, tmp);
+
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+                GLES20.glViewport(0, 0, viewWidth, viewHeight);
+            }
+
+            m_table.draw(m_tableMatrix, m_eyePosition, m_light, m_shadowObject);
+            m_ball.draw(m_tableMatrix, m_light, m_tmpMatrix);
+            for (Cup cup : m_cup)
+                cup.draw(m_tableMatrix, m_eyePosition, m_light, m_shadowObject, m_tmpMatrix);
         }
 
         if (m_bottomLineString != null)
@@ -492,16 +571,16 @@ public class GameClientView extends GameView
             canvas3D.drawText(
                     vpMatrix,
                     m_bottomLineString,
-                    /*x*/ m_bottomLineX,
-                    /*y*/ m_bottomLineY,
-                    /*z*/ 1f,
+                    m_bottomLineX,
+                    m_bottomLineY,
+                    1f,
                     m_bottomLineStringFontSize,
                     m_bottomLineStringColor,
                     Paint.Align.CENTER );
         }
     }
 
-    public void onConnected( GameClientSession session, short virtualTableHeight, short virtualBallRadius )
+    public void onConnected(GameClientSession session, short virtualTableHeight, short virtualBallRadius)
     {
         final float viewWidth = getWidth();
         final float viewHeight = getHeight();
@@ -511,7 +590,6 @@ public class GameClientView extends GameView
         m_tableWidth = viewWidth;
         m_tableHeight = (virtualTableHeight * m_scale);
         m_ballRadius = (virtualBallRadius * m_scale);
-        m_light = new float[6];
         final Bitmap statusLine = createStatusLine( -1, m_serverPlayerName );
 
         Log.d( LOG_TAG, "onConnected: tableSize=(" + m_tableWidth + ", " + m_tableHeight + ")" );
@@ -524,13 +602,6 @@ public class GameClientView extends GameView
         if (m_bottomLineY < bottomHeight2)
             m_bottomLineY = bottomHeight2;
 
-        m_light[0] = (-viewWidth/4);     /*x*/
-        m_light[1] = (-viewWidth/4);     /*y*/
-        m_light[2] = (viewWidth / 2.0f); /*z*/
-        m_light[3] = 1.0f; /*r*/
-        m_light[4] = 1.0f; /*g*/
-        m_light[5] = 1.0f; /*b*/
-
         m_angleX = (float) (Math.PI / 4f);
         m_angleZ = 0f;
 
@@ -542,15 +613,13 @@ public class GameClientView extends GameView
                 try
                 {
                     m_renderThreadId = Thread.currentThread().getId();
-                    m_table = new Table( context );
+                    m_table = new Table(context);
+                    m_ball = new Ball(context, BALL_COLOR);
 
-                    final ModelBall modelBall = new ModelBall( context, BALL_COLOR );
-                    m_ball = new Ball( modelBall );
-
-                    final ModelCap modelCap = new ModelCap( context, CAP_STRIPES );
-                    m_cap = new Cap[3];
-                    for (int idx=0; idx<m_cap.length; idx++)
-                        m_cap[idx] = new Cap( modelCap );
+                    final ModelCup modelCup = new ModelCup(context, CAP_STRIPES);
+                    m_cup = new Cup[3];
+                    for (int idx = 0; idx< m_cup.length; idx++)
+                        m_cup[idx] = new Cup(modelCup);
                     m_capWithBall = -1;
                 }
                 catch (final IOException ex)
@@ -714,7 +783,7 @@ public class GameClientView extends GameView
         } );
     }
 
-    public void dragBallCT( float virtualX, float virtualY )
+    public void dragBallCT(float virtualX, float virtualY, final float rm)
     {
         /* ball position is relative to the center of the table,
          * but second player look at the table from opposite side,
@@ -724,15 +793,15 @@ public class GameClientView extends GameView
         final float y = -(virtualY * m_scale);
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                m_ball.updateMatrix( x, y, m_ballRadius, m_eyePosition, m_tmpMatrix );
+                m_ball.updateMatrix(x, y, m_ballRadius*rm, m_ballRadius, m_eyePosition, m_light, m_tmpMatrix);
                 return false;
             }
         } );
     }
 
-    public void putBallCT( float virtualX, float virtualY )
+    public void putBallCT(float virtualX, float virtualY)
     {
-        dragBallCT( virtualX, virtualY );
+        dragBallCT(virtualX, virtualY, 1f);
         m_activity.playSound_BallPut();
     }
 
@@ -740,7 +809,7 @@ public class GameClientView extends GameView
     {
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                m_ball.setVisible( false );
+                m_ball.setVisible(false);
                 return false;
             }
         } );
@@ -757,7 +826,7 @@ public class GameClientView extends GameView
         final int cid = id;
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                return m_cap[cid].updateMatrix( x, y, z, m_ballRadius, frameId, m_tmpMatrix );
+                return m_cup[cid].updateMatrix( x, y, z, m_ballRadius, frameId, m_tmpMatrix );
             }
         } );
     }
@@ -776,7 +845,7 @@ public class GameClientView extends GameView
         final int fid = id;
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                m_cap[fid].setVisible( false );
+                m_cup[fid].setVisible( false );
                 return false;
             }
         } );

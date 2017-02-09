@@ -20,11 +20,11 @@ package org.jsl.shmp;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.RectF;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.opengl.GLES20;
 import android.opengl.Matrix;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
@@ -69,15 +69,8 @@ public class GameServerView extends GameView
             return (Math.sqrt(dx*dx + dy*dy) < radius);
         }
 
-        public float getX()
-        {
-            return m_x;
-        }
-
-        public float getY()
-        {
-            return m_y;
-        }
+        public float getX() { return m_x; }
+        public float getY() { return m_y; }
 
         public void moveTo( float x, float y )
         {
@@ -98,49 +91,73 @@ public class GameServerView extends GameView
         }
     }
 
-    private static class Ball extends SceneObject
+    public static class Ball
     {
+        private static final int MODEL = 0;
+        private static final int MODEL_INVERTED = 16;
+        private static final int SHADOW = 32;
+
         private final ModelBall m_model;
         private final float [] m_matrix;
         private boolean m_visible;
-        private float m_x;
-        private float m_y;
 
-        public Ball( ModelBall model )
+        private static void orientMatrixTo(float [] m, int offset, float [] to, int toOffset, float [] tmp, int tmpOffset)
         {
-            m_model = model;
-            m_matrix = new float[16];
-            Matrix.setIdentityM( m_matrix, 0 );
+            Vector.set(tmp, tmpOffset, 0f, 0f, 1f, 0f);
+            Vector.crossProduct(tmp, tmpOffset+4, tmp, tmpOffset, to, toOffset);
+            final double angle = (Math.asin(Vector.length(tmp, tmpOffset+4) / Vector.length(to, toOffset)) * 180d / Math.PI);
+            Matrix.setRotateM(m, offset, (float)angle, tmp[tmpOffset+4], tmp[tmpOffset+4+1], tmp[tmpOffset+4+2]);
+        }
+
+        public Ball(Context context, int color) throws IOException
+        {
+            m_model = new ModelBall(context, color);
+            m_matrix = new float[16*3];
             m_visible = false;
         }
 
-        public void updateMatrix( float x, float y, float radius, float [] tmp )
+        public void updateMatrix(float x, float y, float z, float radius, Vector light, float [] tmp)
         {
-            Matrix.setIdentityM( tmp, 0 );
-            Matrix.translateM( tmp, 0, x, y, 0 );
-            Matrix.setIdentityM( tmp, 16 );
-            Matrix.scaleM( tmp, 16, radius, radius, radius );
-            Matrix.multiplyMM( m_matrix, 0, tmp, 0, tmp, 16 );
             m_visible = true;
-            m_x = x;
-            m_y = y;
+
+            // model matrix = [translate matrix] x [scale matrix]
+            Matrix.setIdentityM(tmp, 0);
+            Matrix.scaleM(tmp, 0, radius, radius, radius);
+            Matrix.setIdentityM(tmp, 16);
+            Matrix.translateM(tmp, 16, x, y, z);
+            Matrix.multiplyMM(m_matrix, MODEL, tmp, 16, tmp, 0);
+            Matrix.invertM(m_matrix, MODEL_INVERTED, m_matrix, MODEL);
+
+            // shadow model matrix = [translate matrix] x [orient matrix] x [scale matrix]
+            Vector.set(tmp, 16, light.getX()-x, light.getY()-y, light.getZ()-z);
+            orientMatrixTo(tmp, 0, tmp, 16, tmp, 20);
+            Matrix.setIdentityM(tmp, 16);
+            Matrix.scaleM(tmp, 16, radius, radius, radius);
+            Matrix.multiplyMM(tmp, 32, tmp, 0, tmp, 16);
+            Matrix.setIdentityM(tmp, 0);
+            Matrix.translateM(tmp, 0, x, y, z);
+            Matrix.multiplyMM(m_matrix, SHADOW, tmp, 0, tmp, 32);
         }
 
-        public void draw( float [] vpMatrix, float [] light, float [] tmp )
+        public void draw(float [] vpMatrix, Vector light, float [] tmp, int tmpOffset)
         {
             if (m_visible)
             {
-                Matrix.multiplyMM( tmp, 0, vpMatrix, 0, m_matrix, 0 );
+                Matrix.multiplyMM(tmp, tmpOffset, vpMatrix, 0, m_matrix, MODEL);
+                Matrix.multiplyMV(tmp, tmpOffset+16, m_matrix, MODEL_INVERTED, light.v, light.offs);
+                tmp[tmpOffset+16+3] = light.v[light.offs+4];
+                tmp[tmpOffset+16+4] = light.v[light.offs+5];
+                tmp[tmpOffset+16+5] = light.v[light.offs+6];
+                m_model.draw(tmp, tmpOffset, tmp, tmpOffset+16);
+            }
+        }
 
-                /* tmp[16-19] : light direction
-                 * ball shader draws ball at (0,0,0) and assuming the eye position is on the Z axis,
-                 * also shader expects the direction to the light, but not it's position.
-                 */
-                tmp[16] = (light[0] - m_x);
-                tmp[17] = (light[1] - m_y);
-                tmp[18] = light[2];
-
-                m_model.draw( tmp, 0, tmp, 16, light, 3 );
+        public void drawShadow(float [] vpMatrix, int vpMatrixOffset, float [] tmp)
+        {
+            if (m_visible)
+            {
+                Matrix.multiplyMM(tmp, 0, vpMatrix, vpMatrixOffset, m_matrix, SHADOW);
+                m_model.drawShadow(tmp, 0);
             }
         }
 
@@ -155,10 +172,10 @@ public class GameServerView extends GameView
         }
     }
 
-    private static class Cap extends SceneObject
+    private static class Cup extends SceneObject
     {
         private final int m_id;
-        private final Model m_model;
+        private final ModelCup m_model;
         private final float [] m_matrix;
         private boolean m_draw;
 
@@ -166,11 +183,11 @@ public class GameServerView extends GameView
         private float m_eventY;
         private int m_state;
 
-        public Cap( int id, Model model )
+        public Cup(int id, ModelCup model)
         {
             m_id = id;
             m_model = model;
-            m_matrix = new float[16];
+            m_matrix = new float[16*2];
             Matrix.setIdentityM( m_matrix, 0 );
             m_draw = false;
         }
@@ -180,22 +197,41 @@ public class GameServerView extends GameView
             return m_id;
         }
 
-        public void updateMatrix( float x, float y, float radius, float [] tmp )
+        public void updateMatrix(float x, float y, float radius, float [] tmp)
         {
-            Matrix.setIdentityM( tmp, 0 );
-            Matrix.translateM( tmp, 0, x, y, 0 );
-            Matrix.setIdentityM( tmp, 16 );
-            Matrix.scaleM( tmp, 16, radius, radius, radius );
-            Matrix.multiplyMM( m_matrix, 0, tmp, 0, tmp, 16 );
+            Matrix.setIdentityM(tmp, 0);
+            Matrix.translateM(tmp, 0, x, y, 0);
+            Matrix.setIdentityM(tmp, 16);
+            Matrix.scaleM(tmp, 16, radius, radius, radius);
+            Matrix.multiplyMM(m_matrix, 0, tmp, 0, tmp, 16);
+            Matrix.invertM(m_matrix, 16, m_matrix, 0);
             m_draw = true;
         }
 
-        public void draw( float [] vpMatrix, float [] lightPosition, float [] tmp )
+        public void draw(
+                float [] vpMatrix, Vector eyePosition, Vector light,
+                float [] shadowMatrix, int shadowMatrixOffset, int shadowTextureId,
+                float [] tmp, int tmpOffset)
         {
             if (m_draw)
             {
-                Matrix.multiplyMM( tmp, 0, vpMatrix, 0, m_matrix, 0 );
-                m_model.draw( tmp, 0, lightPosition, 0 );
+                Matrix.multiplyMM(tmp, tmpOffset, vpMatrix, 0, m_matrix, 0);
+                Matrix.multiplyMV(tmp, tmpOffset+16, m_matrix, 16, eyePosition.v, eyePosition.offs);
+                Matrix.multiplyMV(tmp, tmpOffset+20, m_matrix, 16, light.v, light.offs);
+                Matrix.multiplyMM(tmp, tmpOffset+32, shadowMatrix, shadowMatrixOffset, m_matrix, 0);
+                tmp[tmpOffset+20+3] = light.get(4);
+                tmp[tmpOffset+20+4] = light.get(5);
+                tmp[tmpOffset+20+5] = light.get(6);
+                m_model.draw(tmp, tmpOffset, tmp, tmpOffset+16, tmp, tmpOffset+20, tmp, tmpOffset+32, shadowTextureId);
+            }
+        }
+
+        public void drawShadow(float [] vpMatrix, int vpMatrixOffset, float [] tmp)
+        {
+            if (m_draw)
+            {
+                Matrix.multiplyMM(tmp, 0, vpMatrix, vpMatrixOffset, m_matrix, 0);
+                m_model.drawShadow(tmp, 0);
             }
         }
 
@@ -284,33 +320,34 @@ public class GameServerView extends GameView
         m_bottomLineTextColor = color;
     }
 
-    private float getVirtualX( float x )
-    {
-        return (x - m_tableRect.left - m_tableRect.width()/2) * m_scale;
-    }
+    private float getVirtualX(float x) { return (x * m_scale); }
+    private float getVirtualY(float y) { return (y * m_scale); }
 
-    private float getVirtualY( float y )
-    {
-        return (m_tableRect.height()/2 - (y - m_tableRect.top)) * m_scale;
-    }
+    private float getBallStartX() { return 0; }
+    private float getBallStartY() { return -m_tableHeight/2 - m_ballRadius*2; }
 
     private final GameServerActivity m_activity;
     private final NsdManager m_nsdManager;
     private final short m_gameTime;
-    private final Cap [] m_cap;
+    private final Cup [] m_cup;
     private final String m_strPort;
     private final int m_ballRadius;
     private final TimerManager m_timerManager;
 
     private final float [] m_tmpMatrix;
-    private final HashMap<Integer, Cap> m_capByPointer;
+    private final HashMap<Integer, Cup> m_capByPointer;
 
-    private float [] m_light;
-    private float [] m_eyePosition;
+    private Vector m_light;
+    private Vector m_eyePosition;
+    private ShadowObject m_shadowObject;
+    private float [] m_tableMatrix;
+    private float [] m_screen2TableMatrix;
     private Table m_table;
-    private RectF m_tableRect;
-    private RectF m_tableRectEx;
+    private int m_tableWidth;
+    private int m_tableHeight;
     private Ball m_ball;
+    private float m_ballX;
+    private float m_ballY;
     private int m_capIdx;
     private int m_capWithBall;
 
@@ -413,7 +450,7 @@ public class GameServerView extends GameView
                     getPingConfig(),
                     m_desiredTableHeight,
                     m_ballRadius,
-                    (short)m_cap.length );
+                    (short) m_cup.length );
         }
     }
 
@@ -496,15 +533,15 @@ public class GameServerView extends GameView
     protected Bitmap createStatusLine()
     {
         /* Initial status line */
-        final int width = getWidth();
+        final int width = getViewWidth();
         final Bitmap bitmap = Bitmap.createBitmap( width, getTopReservedHeight(), Bitmap.Config.RGB_565 );
         final Canvas canvas = new Canvas( bitmap );
         final Paint paint = getPaint();
         final float textY = -paint.ascent();
 
-        paint.setColor( Color.WHITE );
-        paint.setTextAlign( Paint.Align.LEFT );
-        canvas.drawText( m_strPort, 0, textY, paint );
+        paint.setColor(Color.WHITE);
+        paint.setTextAlign(Paint.Align.LEFT);
+        canvas.drawText(m_strPort, 0, textY, paint);
 
         return bitmap;
     }
@@ -525,65 +562,67 @@ public class GameServerView extends GameView
         return bitmap;
     }
 
-    public GameServerView( GameServerActivity activity, String deviceId, String playerName, short gameTime, short caps, NsdManager nsdManager )
+    public GameServerView(GameServerActivity activity, String deviceId, String playerName, short gameTime, short caps, NsdManager nsdManager)
     {
-        super( activity, deviceId, playerName );
+        super(activity, deviceId, playerName);
 
         m_activity = activity;
         m_nsdManager = nsdManager;
         m_gameTime = gameTime;
-        m_cap = new Cap[caps];
+        m_cup = new Cup[caps];
         m_strPort = getResources().getString( R.string.port );
         m_ballRadius = (getBottomReservedHeight() / 3);
         m_timerManager = new TimerManager();
 
         m_tmpMatrix = new float[64];
-        m_capByPointer = new HashMap<Integer, Cap>();
+        m_capByPointer = new HashMap<Integer, Cup>();
 
-        m_byteBufferPool = new RetainableByteBufferPool( 1024, true, Protocol.BYTE_ORDER );
+        m_byteBufferPool = new RetainableByteBufferPool(1024, true, Protocol.BYTE_ORDER);
 
         m_lock = new ReentrantLock();
         m_cond = m_lock.newCondition();
         m_win = -1;
     }
 
-    public void onSurfaceCreated( GL10 gl, EGLConfig config )
+    public void onSurfaceCreated(GL10 gl, EGLConfig config)
     {
-        super.onSurfaceCreated( gl, config );
+        super.onSurfaceCreated(gl, config);
     }
 
-    public void onSurfaceChanged( GL10 gl, int width, int height )
+    public void onSurfaceChanged(GL10 gl, int width, int height)
     {
         /* Looks like a better place to start all than surfaceCreated() */
-        super.onSurfaceChanged( gl, width, height );
+        super.onSurfaceChanged(gl, width, height);
 
         m_scale = (VIRTUAL_TABLE_WIDTH / width);
         m_state = STATE_WAIT_CLIENT;
 
         try
         {
-            /* [0-2] : position,
-             * [3-5] : color
-             */
-            m_light = new float[6];
-            m_light[0] = -(width / 4f); /*x*/
-            m_light[1] = (height / 2f); /*y*/
-            m_light[2] = (width * 4f);  /*z*/
-            m_light[3] = 1.0f; /*r*/
-            m_light[4] = 1.0f; /*g*/
-            m_light[5] = 1.0f; /*b*/
+            final float [] light =
+            {
+                -(width / 2f), // x
+                (height / 2f), // y
+                 (width * 2f), // z
+                           0f, // w
+                           1f, // r
+                           1f, // g
+                           1f  // b
+            };
 
-            m_eyePosition = new float [] { 0.0f, 0.0f, 100.0f };
+            m_light = new Vector(light, 0);
+            m_eyePosition = new Vector(0f, 0f, 100f);
+            m_shadowObject = ShadowObject.create(width, m_light, m_tmpMatrix);
+
+            /***********************/
 
             final Context context = getContext();
-            m_table = new Table( context );
+            m_table = new Table(context);
+            m_ball = new Ball(context, BALL_COLOR);
 
-            final ModelBall modelBall = new ModelBall( context, BALL_COLOR );
-            m_ball = new Ball( modelBall );
-
-            final ModelCap modelCap = new ModelCap( context, CAP_STRIPES );
-            for (int idx=0; idx<m_cap.length; idx++)
-                m_cap[idx] = new Cap( idx, modelCap );
+            final ModelCup modelCup = new ModelCup(context, CAP_STRIPES);
+            for (int idx = 0; idx< m_cup.length; idx++)
+                m_cup[idx] = new Cup( idx, modelCup);
 
             final Collider collider = startCollider();
             final GameAcceptor acceptor = new GameAcceptor(
@@ -597,7 +636,7 @@ public class GameServerView extends GameView
             m_bottomLineX = (width / 2f);
             m_bottomLineY = (height / 2f);
 
-            m_bottomLineText = getContext().getString( R.string.waiting_second_player );
+            m_bottomLineText = getContext().getString(R.string.waiting_second_player);
             m_bottomLineTextColor = Color.GREEN;
             m_bottomLineTextFontSize = (getBottomReservedHeight() * 0.3f);
         }
@@ -607,26 +646,61 @@ public class GameServerView extends GameView
         }
     }
 
-    public void onDrawFrame( float [] vpMatrix, Canvas3D canvas3D )
+    public void onDrawFrame(float [] vpMatrix, Canvas3D canvas3D)
     {
-        super.onDrawFrame( vpMatrix, canvas3D );
+        super.onDrawFrame(vpMatrix, canvas3D);
 
-        if (m_tableRect != null)
+        if (m_tableWidth > 0)
         {
-            final float viewHeight = getHeight();
-            final float tableWidth = m_tableRect.width();
-            final float tableHeight = m_tableRect.height();
-            Matrix.translateM(
-                    m_tmpMatrix, 16,
-                    Canvas3D.s_identityMatrix, 0,
-                    tableWidth/2, viewHeight - getTopReservedHeight() - 1 - tableHeight/2, 0f );
-            Matrix.multiplyMM( m_tmpMatrix, 0, vpMatrix, 0, m_tmpMatrix, 16 );
-            m_table.draw( /*mvpMatrix*/m_tmpMatrix, m_light, m_eyePosition );
+            final float [] tmp = m_tmpMatrix;
 
-            m_ball.draw( vpMatrix, m_light, m_tmpMatrix );
+            if (m_shadowObject != null)
+            {
+                final int frameBufferId = m_shadowObject.frameBufferId;
+                final int mapSize = m_shadowObject.mapSize;
+                final int viewWidth = getWidth();
+                final int viewHeight = getHeight();
 
-            for (Cap cap : m_cap)
-                cap.draw( vpMatrix, m_light, m_tmpMatrix );
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBufferId);
+                GLES20.glViewport(0, 0, mapSize, mapSize);
+
+                GLES20.glClearColor(0f, 0f, 0f, 1f);
+                GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT|GLES20.GL_COLOR_BUFFER_BIT);
+
+                m_ball.drawShadow(m_shadowObject.matrix, 0, tmp);
+                for (Cup cup : m_cup)
+                    cup.drawShadow(m_shadowObject.matrix, 0, tmp);
+
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+                GLES20.glViewport(0, 0, viewWidth, viewHeight);
+
+                /*
+                try
+                {
+                    final TestActivity.ShadowDrawer shadowDrawer = new TestActivity.ShadowDrawer(getContext());
+                    final float[] matrix = new float[16 * 3];
+                    Matrix.orthoM(matrix, 0, -viewWidth/2, viewWidth/2, -viewHeight/2, viewHeight/2, 0, 50);
+                    Matrix.setLookAtM(matrix, 16, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1.0f, 0.0f);
+                    Matrix.multiplyMM(matrix, 32, matrix, 0, matrix, 16);
+                    shadowDrawer.draw(matrix, 32, mapSize, m_shadowObject.textureId);
+                }
+                catch (final IOException ex)
+                {
+                    Log.e(LOG_TAG, ex.toString(), ex);
+                }
+                */
+            }
+
+            Matrix.multiplyMM(tmp, 0, vpMatrix, 0, m_tableMatrix, 0);
+
+            m_table.draw(tmp, m_eyePosition, m_light, m_shadowObject);
+            m_ball.draw(tmp, m_light, tmp, 16);
+
+            for (Cup cup : m_cup)
+            {
+                cup.draw(tmp, m_eyePosition, m_light,
+                        m_shadowObject.matrix, 16, m_shadowObject.textureId, tmp, 16);
+            }
         }
 
         if (m_bottomLineText != null)
@@ -660,11 +734,11 @@ public class GameServerView extends GameView
         Matrix.translateM( m_tmpMatrix, 32, getWidth()/2, getHeight()/2, 0f );
         //Matrix.multiplyMM( m_tmpMatrix, 48, m_tmpMatrix, 32, m_tmpMatrix, 16 );
         Matrix.multiplyMM( m_tmpMatrix, 0, vpMatrix, 0, m_tmpMatrix, 32 );
-        m_cap.draw( m_tmpMatrix );
+        m_cup.draw( m_tmpMatrix );
         */
     }
 
-    public void onClientConnected( GameServerSession session, short virtualTableHeight, String clientDeviceId, String clientPlayerName )
+    public void onClientConnected(GameServerSession session, short virtualTableHeight, String clientDeviceId, String clientPlayerName)
     {
         m_session = session;
         m_clientDeviceId = clientDeviceId;
@@ -672,42 +746,50 @@ public class GameServerView extends GameView
 
         final int topReservedHeight = getTopReservedHeight();
         final int viewWidth = getWidth();
-        final int tableWidth = viewWidth;
-        final int tableHeight = (int) (viewWidth * virtualTableHeight / VIRTUAL_TABLE_WIDTH);
+        final int viewHeight = getHeight();
 
-        /* Android view coordinates */
-        m_tableRect = new RectF(
-                /*left  */ 0,
-                /*top   */ topReservedHeight + 1,
-                /*right */ tableWidth - 1,
-                /*bottom*/ topReservedHeight + 1 + tableHeight );
+        m_tableWidth = viewWidth;
+        m_tableHeight = (int) (viewWidth * virtualTableHeight / VIRTUAL_TABLE_WIDTH);
+        m_tableMatrix = new float[16];
+        Matrix.setIdentityM(m_tableMatrix, 0);
+        Matrix.translateM(m_tableMatrix, 0, m_tableWidth/2-1, viewHeight-getTopReservedHeight()-1-m_tableHeight/2, 0f);
 
-        m_tableRectEx = new RectF(
-                /*left  */ (m_tableRect.left + m_ballRadius),
-                /*top   */ (m_tableRect.top + m_ballRadius),
-                /*right */ (m_tableRect.right - m_ballRadius),
-                /*bottom*/ (m_tableRect.bottom - m_ballRadius) );
+        m_screen2TableMatrix = new float[16];
+        m_screen2TableMatrix[0]  = 1;  // 0 4  8 12
+        m_screen2TableMatrix[5]  = -1; // 1 5  9 13
+        m_screen2TableMatrix[10] = 1;  // 2 6 10 14
+        m_screen2TableMatrix[15] = 1;  // 3 7 11 15
+        m_screen2TableMatrix[12] = -m_tableMatrix[12];
+        m_screen2TableMatrix[13] = (viewHeight - m_tableMatrix[13]);
 
-        m_table.setSize( tableWidth, tableHeight );
+        m_table.setSize(m_tableWidth, m_tableHeight);
 
         m_bottomLineText = null;
-        m_bottomLineY = (topReservedHeight + tableHeight + getBottomReservedHeight() / 2);
+        m_bottomLineY = (topReservedHeight + m_tableHeight + getBottomReservedHeight() / 2);
 
         m_state = STATE_BALL_SET;
         
-        final Bitmap statusLine = createStatusLine( /*ping*/-1, clientPlayerName );
+        final Bitmap statusLine = createStatusLine(/*ping*/-1, clientPlayerName);
 
-        final float ballX = m_bottomLineX;
-        final float ballY = m_bottomLineY;
-        m_ball.moveTo( ballX, ballY );
+        final float ballX = getBallStartX();
+        final float ballY = getBallStartY();
 
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                setStatusLine( statusLine );
-                m_ball.updateMatrix( ballX, (getHeight() - ballY), m_ballRadius, m_tmpMatrix );
+                setStatusLine(statusLine);
+                m_ball.updateMatrix(
+                        ballX,
+                        ballY,
+                        m_ballRadius,
+                        m_ballRadius,
+                        m_light,
+                        m_tmpMatrix);
                 return false;
             }
         } );
+
+        m_ballX = ballX;
+        m_ballY = ballY;
     }
 
     public void onClientDisconnected()
@@ -723,18 +805,18 @@ public class GameServerView extends GameView
         }
     }
 
-    public void setPing( int ping )
+    public void setPing(int ping)
     {
-        final Bitmap statusLine = createStatusLine( ping, m_clientPlayerName );
+        final Bitmap statusLine = createStatusLine(ping, m_clientPlayerName);
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                setStatusLine( statusLine );
+                setStatusLine(statusLine);
                 return false;
             }
         } );
     }
 
-    public void showGuessReplyCT( boolean found )
+    public void showGuessReplyCT(boolean found)
     {
         m_state = STATE_FINISHED;
         m_win = (found ? 0 : 1);
@@ -749,7 +831,7 @@ public class GameServerView extends GameView
         } );
     }
 
-    public boolean onTouchEvent( MotionEvent event )
+    public boolean onTouchEvent(MotionEvent event)
     {
         final int action = event.getActionMasked();
         //final long tsc = System.nanoTime();
@@ -758,24 +840,24 @@ public class GameServerView extends GameView
         {
             if (m_state == STATE_BALL_SET)
             {
-                final float eventX = event.getX();
-                final float eventY = event.getY();
-                if (m_ball.contains(eventX, eventY, m_ballRadius))
+                final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                if (Vector.length(eventX-m_ballX, eventY-m_ballY) <= m_ballRadius)
                 {
                     m_eventX = eventX;
                     m_eventY = eventY;
                     m_state = STATE_BALL_DRAG;
-                    Log.d( LOG_TAG, "STATE_BALL_SET -> STATE_BALL_DRAG" );
+                    Log.d(LOG_TAG, "STATE_BALL_SET -> STATE_BALL_DRAG");
                 }
             }
             else if (m_state == STATE_CAP_SET)
             {
-                final float x = event.getX();
-                final float y = event.getY();
-                if (m_cap[m_capIdx].contains(x, y, m_ballRadius))
+                final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                if (m_cup[m_capIdx].contains(eventX, eventY, m_ballRadius))
                 {
-                    m_eventX = x;
-                    m_eventY = y;
+                    m_eventX = eventX;
+                    m_eventY = eventY;
                     m_state = STATE_CAP_DRAG;
                     Log.d( LOG_TAG, "STATE_CAP_SET -> STATE_CAP_DRAG" );
                 }
@@ -787,28 +869,28 @@ public class GameServerView extends GameView
 
                 final int pointerIndex = event.getActionIndex();
                 final int pointerId = event.getPointerId( pointerIndex );
-                final float eventX = event.getX( pointerIndex );
-                final float eventY = event.getY( pointerIndex );
+                final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(pointerIndex), event.getY(pointerIndex), 0f, 1f);
+                final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(pointerIndex), event.getY(pointerIndex), 0f, 1f);
                 int idx = 0;
-                for (; idx<m_cap.length; idx++)
+                for (; idx< m_cup.length; idx++)
                 {
-                    final Cap cap = m_cap[idx];
-                    if (cap.contains(eventX, eventY, m_ballRadius))
+                    final Cup cup = m_cup[idx];
+                    if (cup.contains(eventX, eventY, m_ballRadius))
                     {
-                        cap.setEventPosition( eventX, eventY );
-                        cap.setState( CAP_TOUCH );
-                        m_capByPointer.put( pointerId, cap );
+                        cup.setEventPosition(eventX, eventY);
+                        cup.setState(CAP_TOUCH);
+                        m_capByPointer.put(pointerId, cup);
                         break;
                     }
                 }
 
-                if (idx < m_cap.length)
+                if (idx < m_cup.length)
                 {
-                    Log.d( LOG_TAG, "ACTION_DOWN: pointerIndex=" + pointerIndex +
-                            " pointerId=" + pointerId + ", capIdx=" + idx );
+                    Log.d(LOG_TAG, "ACTION_DOWN: pointerIndex=" + pointerIndex +
+                            " pointerId=" + pointerId + ", capIdx=" + idx);
                 }
-                else if ((Math.abs(eventX - m_bottomLineX) < getBottomReservedHeight()/2f) &&
-                         (Math.abs(eventY - m_bottomLineY) < getBottomReservedHeight()/2f))
+                else if ((Math.abs(event.getX(pointerIndex) - m_bottomLineX) < getBottomReservedHeight()/2f) &&
+                         (Math.abs(event.getY(pointerIndex) - m_bottomLineY) < getBottomReservedHeight()/2f))
                 {
                     m_state = STATE_GAMBLE_TIMER_TOUCH;
                     Log.d( LOG_TAG, "ACTION_DOWN: STATE_GAMBLE -> STATE_GAMBLE_TIMER_TOUCH" );
@@ -826,16 +908,16 @@ public class GameServerView extends GameView
             {
                 final int pointerIndex = event.getActionIndex();
                 final int pointerId = event.getPointerId( pointerIndex );
-                Log.d( LOG_TAG, "STATE_GAMBLE: POINTER_DOWN: pointerIndex=" + pointerIndex + " pointerId=" + pointerId );
-                final float x = event.getX( pointerIndex );
-                final float y = event.getY( pointerIndex );
-                for (Cap cap : m_cap)
+                Log.d(LOG_TAG, "STATE_GAMBLE: POINTER_DOWN: pointerIndex=" + pointerIndex + " pointerId=" + pointerId);
+                final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(pointerIndex), event.getY(pointerIndex), 0f, 1f);
+                final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(pointerIndex), event.getY(pointerIndex), 0f, 1f);
+                for (Cup cup : m_cup)
                 {
-                    if (cap.contains(x, y, m_ballRadius))
+                    if (cup.contains(eventX, eventY, m_ballRadius))
                     {
-                        cap.setEventPosition( x, y );
-                        cap.setState( CAP_TOUCH );
-                        m_capByPointer.put( pointerId, cap );
+                        cup.setEventPosition(eventX, eventY);
+                        cup.setState(CAP_TOUCH);
+                        m_capByPointer.put(pointerId, cup);
                         break;
                     }
                 }
@@ -846,81 +928,86 @@ public class GameServerView extends GameView
             if (m_state == STATE_GAMBLE)
             {
                 final int pointerIndex = event.getActionIndex();
-                final int pointerId = event.getPointerId( pointerIndex );
-                Log.d( LOG_TAG, "STATE_GAMBLE: POINTER_UP: pointerIndex=" + pointerIndex + " pointerId=" + pointerId );
-                m_capByPointer.remove( pointerId );
+                final int pointerId = event.getPointerId(pointerIndex);
+                Log.d(LOG_TAG, "STATE_GAMBLE: POINTER_UP: pointerIndex=" + pointerIndex + " pointerId=" + pointerId);
+                m_capByPointer.remove(pointerId);
             }
         }
         else if (action == MotionEvent.ACTION_MOVE)
         {
             if (m_state == STATE_BALL_DRAG)
             {
-                final float x = event.getX();
-                final float y = event.getY();
-                final float dx = (x - m_eventX);
-                final float dy = (y - m_eventY);
-                final float bx = m_ball.moveByX( dx );
-                final float by = m_ball.moveByY( dy );
+                final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                final float dx = (eventX - m_eventX);
+                final float dy = (eventY - m_eventY);
+                final float ballX = (m_ballX += dx);
+                final float ballY = (m_ballY += dy);
 
                 executeOnRenderThread( new RenderThreadRunnable() {
                     public boolean runOnRenderThread(int frameId) {
-                        m_ball.updateMatrix( bx, (getHeight() - by), m_ballRadius, m_tmpMatrix );
+                        m_ball.updateMatrix(
+                                ballX,        // x
+                                ballY,        // y
+                                m_ballRadius, // z
+                                m_ballRadius,
+                                m_light,
+                                m_tmpMatrix);
                         return false;
                     }
                 } );
 
-                final RetainableByteBuffer msg = Protocol.DragBall.create( m_byteBufferPool, getVirtualX(bx), getVirtualY(by) );
-                m_session.sendMessage( msg );
+                final RetainableByteBuffer msg = Protocol.DragBall.create(
+                        m_byteBufferPool, getVirtualX(ballX), getVirtualY(ballY));
+                m_session.sendMessage(msg);
                 msg.release();
 
-                m_eventX = x;
-                m_eventY = y;
+                m_eventX = eventX;
+                m_eventY = eventY;
             }
             else if (m_state == STATE_CAP_DRAG)
             {
                 final int capIdx = m_capIdx;
-                final float x = event.getX();
-                final float y = event.getY();
-                final float dx = (x - m_eventX);
-                final float dy = (y - m_eventY);
-                final float cx = m_cap[capIdx].moveByX( dx );
-                final float cy = m_cap[capIdx].moveByY( dy );
+                final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                final float dx = (eventX - m_eventX);
+                final float dy = (eventY - m_eventY);
+                final float cx = m_cup[capIdx].moveByX(dx);
+                final float cy = m_cup[capIdx].moveByY(dy);
 
                 executeOnRenderThread( new RenderThreadRunnable() {
                     public boolean runOnRenderThread(int frameId) {
-                        m_cap[capIdx].updateMatrix( cx, (getHeight() - cy), m_ballRadius, m_tmpMatrix );
+                        m_cup[capIdx].updateMatrix(cx, cy, m_ballRadius, m_tmpMatrix);
                         return false;
                     }
                 } );
 
-                final float vcx = getVirtualX( cx );
-                final float vcy = getVirtualY( cy );
-                final float vcz = (m_ballRadius * 2f * m_scale);
-                final RetainableByteBuffer msg = Protocol.DragCap.create( m_byteBufferPool, (short)capIdx, vcx, vcy, vcz );
+                final RetainableByteBuffer msg = Protocol.DragCup.create(m_byteBufferPool, (short)capIdx,
+                        getVirtualX(cx), getVirtualY(cy), (m_ballRadius * 2f * m_scale));
                 m_session.sendMessage( msg );
                 msg.release();
 
-                m_eventX = x;
-                m_eventY = y;
+                m_eventX = eventX;
+                m_eventY = eventY;
             }
             else if (m_state == STATE_GAMBLE)
             {
                 final int pointerCount = event.getPointerCount();
                 for (int pointerIndex=0; pointerIndex<pointerCount; pointerIndex++)
                 {
-                    final int pointerId = event.getPointerId( pointerIndex );
-                    final Cap cap = m_capByPointer.get( pointerId );
-                    if (cap != null)
+                    final int pointerId = event.getPointerId(pointerIndex);
+                    final Cup cup = m_capByPointer.get(pointerId);
+                    if (cup != null)
                     {
-                        /* Properly detect cap collision would be quite difficult now,
-                         * let's just stop drugging if cap meet another or leave the table.
+                        /* Properly detect cup collision would be quite difficult now,
+                         * let's just stop drugging if cup meet another or leave the table.
                          */
-                        final float x = event.getX( pointerIndex );
-                        final float y = event.getY( pointerIndex );
-                        float dx = (x - cap.getEventX());
-                        float dy = (y - cap.getEventY());
+                        final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(pointerIndex), event.getY(pointerIndex), 0f, 1f);
+                        final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(pointerIndex), event.getY(pointerIndex), 0f, 1f);
+                        float dx = (eventX - cup.getEventX());
+                        float dy = (eventY - cup.getEventY());
 
-                        if (cap.getState() == CAP_TOUCH)
+                        if (cup.getState() == CAP_TOUCH)
                         {
                             final int touchSlop = getTouchSlop();
                             if (Math.sqrt(dx*dx + dy*dy) < touchSlop)
@@ -928,87 +1015,87 @@ public class GameServerView extends GameView
                                 /* Let's wait more significant movement */
                                 break;
                             }
-                            cap.setState( CAP_DRAG );
+                            cup.setState(CAP_DRAG);
                         }
 
-                        float cx = cap.moveByX( dx );
-                        float cy = cap.moveByY( dy );
+                        float cx = cup.moveByX(dx);
+                        float cy = cup.moveByY(dy);
+                        final float tableWidth2 = (m_tableWidth/2 - m_ballRadius);
+                        final float tableHeight2 = (m_tableHeight/2 - m_ballRadius);
 
-                        if ((cx >= m_tableRectEx.left) &&
-                            (cx <= m_tableRectEx.right) &&
-                            (cy >= m_tableRectEx.top) &&
-                            (cy <= m_tableRectEx.bottom))
+                        if ((Math.abs(cx) <= tableWidth2) && (Math.abs(cy) <= tableHeight2))
                         {
                             final float minDistance = (m_ballRadius * 2f);
                             int idx = 0;
-                            for (; idx<m_cap.length; idx++)
+                            for (; idx< m_cup.length; idx++)
                             {
-                                if (m_cap[idx] != cap)
+                                if (m_cup[idx] != cup)
                                 {
-                                    if (m_cap[idx].contains(cx, cy, minDistance))
+                                    if (m_cup[idx].contains(cx, cy, minDistance))
                                         break;
                                 }
                             }
 
-                            if (idx == m_cap.length)
+                            if (idx == m_cup.length)
                             {
                                 final float fcx = cx;
                                 final float fcy = cy;
+
                                 executeOnRenderThread( new RenderThreadRunnable() {
                                     public boolean runOnRenderThread(int frameId) {
-                                        cap.updateMatrix( fcx, (getHeight() - fcy), m_ballRadius, m_tmpMatrix );
+                                        cup.updateMatrix(fcx, fcy, m_ballRadius, m_tmpMatrix);
                                         return false;
                                     }
                                 } );
 
-                                final float vcx = (cap.getX() - m_tableRect.left - m_tableRect.width()/2) * m_scale;
-                                final float vcy = (m_tableRect.height()/2 - (cap.getY() - m_tableRect.top)) * m_scale;
-                                final RetainableByteBuffer msg = Protocol.DragCap.create( m_byteBufferPool, (short)cap.getID(), vcx, vcy, 0 );
-                                m_session.sendMessage( msg );
+                                final RetainableByteBuffer msg = Protocol.DragCup.create(m_byteBufferPool,
+                                        (short) cup.getID(), getVirtualX(cx), getVirtualY(cy), 0);
+                                m_session.sendMessage(msg);
                                 msg.release();
 
-                                cap.setEventPosition( x, y );
+                                cup.setEventPosition(eventX, eventY);
                             }
                             else
                             {
-                                /* Collision with another cap, caps now can significantly intersect,
+                                /* Collision with another cup, caps now can significantly intersect,
                                  * have to put them properly.
                                  */
-                                dx = (cx - m_cap[idx].getX());
-                                dy = (cy - m_cap[idx].getY());
+                                dx = (cx - m_cup[idx].getX());
+                                dy = (cy - m_cup[idx].getY());
                                 final float dist = (float) Math.sqrt( dx*dx + dy*dy );
-                                final float fcx = m_cap[idx].getX() + minDistance*dx/dist;
-                                final float fcy = m_cap[idx].getY() + minDistance*dy/dist;
+                                final float fcx = m_cup[idx].getX() + minDistance*dx/dist;
+                                final float fcy = m_cup[idx].getY() + minDistance*dy/dist;
                                 executeOnRenderThread( new RenderThreadRunnable() {
                                     public boolean runOnRenderThread(int frameId) {
-                                        cap.updateMatrix( fcx, (getHeight() - fcy), m_ballRadius, m_tmpMatrix );
+                                        cup.updateMatrix(fcx, fcy, m_ballRadius, m_tmpMatrix);
                                         return false;
                                     }
                                 } );
-                                cap.moveTo( fcx, fcy );
-                                m_capByPointer.remove( pointerId );
+                                cup.moveTo(fcx, fcy);
+                                m_capByPointer.remove(pointerId);
                             }
                         }
                         else
                         {
                             /* Out of the table */
-                            if (cx < m_tableRectEx.left)
-                                cx = m_tableRectEx.left;
-                            else if (cx > m_tableRectEx.right)
-                                cx = m_tableRectEx.right;
+                            if (cx < -tableWidth2)
+                                cx = -tableWidth2;
+                            else if (cx > tableWidth2)
+                                cx = tableWidth2;
 
-                            if (cy < m_tableRectEx.top)
-                                cy = m_tableRectEx.top;
-                            else if (cy > m_tableRectEx.bottom)
-                                cy = m_tableRectEx.bottom;
+                            if (cy < -tableHeight2)
+                                cy = -tableHeight2;
+                            else if (cy > tableHeight2)
+                                cy = tableHeight2;
 
-                            cap.moveTo( cx, cy );
+                            cup.moveTo(cx, cy);
 
                             final float fcx = cx;
                             final float fcy = cy;
+
                             executeOnRenderThread( new RenderThreadRunnable() {
                                 public boolean runOnRenderThread(int frameId) {
-                                    cap.updateMatrix( fcx, (getHeight() - fcy), m_ballRadius, m_tmpMatrix );
+                                    cup.updateMatrix(fcx, fcy, m_ballRadius, m_tmpMatrix);
                                     return false;
                                 }
                             } );
@@ -1016,7 +1103,7 @@ public class GameServerView extends GameView
                             m_capByPointer.remove( pointerId );
                         }
                     }
-                    /* else pointer missed the cap when was down */
+                    /* else pointer missed the cup when was down */
                 }
             }
         }
@@ -1025,15 +1112,15 @@ public class GameServerView extends GameView
         {
             if (m_state == STATE_BALL_DRAG)
             {
-                final float x = event.getX();
-                final float y = event.getY();
-                final float dx = (x - m_eventX);
-                final float dy = (y - m_eventY);
-                final float bx = m_ball.moveByX( dx );
-                final float by = m_ball.moveByY( dy );
+                final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
+                final float dx = (eventX - m_eventX);
+                final float dy = (eventY - m_eventY);
+                final float ballX = (m_ballX += dx);
+                final float ballY = (m_ballY += dy);
 
-                if ((bx >= m_tableRectEx.left) && (bx <= m_tableRectEx.right) &&
-                    (by >= m_tableRectEx.top) && (by <= m_tableRectEx.bottom))
+                if ((Math.abs(ballX) <= (m_tableWidth/2 - m_ballRadius)) &&
+                    (Math.abs(ballY) <= (m_tableHeight/2 - m_ballRadius)))
                 {
                     /* Ball in the valid range, proceed with caps. */
                     final int capIdx = 0;
@@ -1041,17 +1128,24 @@ public class GameServerView extends GameView
 
                     executeOnRenderThread( new RenderThreadRunnable() {
                         public boolean runOnRenderThread(int frameId) {
-                            m_ball.updateMatrix( bx, (getHeight() - by), m_ballRadius, m_tmpMatrix );
-                            m_cap[capIdx].updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                            m_ball.updateMatrix(
+                                    ballX,        // x
+                                    ballY,        // y
+                                    m_ballRadius, // z
+                                    m_ballRadius,
+                                    m_light,
+                                    m_tmpMatrix);
+                            m_cup[capIdx].updateMatrix(getBallStartX(), getBallStartY(), m_ballRadius, m_tmpMatrix);
                             return false;
                         }
                     } );
 
-                    final RetainableByteBuffer msg = Protocol.PutBall.create( m_byteBufferPool, getVirtualX(bx), getVirtualY(by) );
-                    m_session.sendMessage( msg );
+                    final RetainableByteBuffer msg = Protocol.PutBall.create(
+                            m_byteBufferPool, getVirtualX(ballX), getVirtualY(ballY));
+                    m_session.sendMessage(msg);
                     msg.release();
 
-                    m_cap[capIdx].moveTo( m_bottomLineX, m_bottomLineY );
+                    m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
                     m_state = STATE_CAP_SET;
                     m_activity.playSound_BallPut();
                 }
@@ -1059,53 +1153,60 @@ public class GameServerView extends GameView
                 {
                     executeOnRenderThread( new RenderThreadRunnable() {
                         public boolean runOnRenderThread(int frameId) {
-                            m_ball.updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                            m_ball.updateMatrix(
+                                    getBallStartX(), // x
+                                    getBallStartY(), // y
+                                    m_ballRadius,    // z
+                                    m_ballRadius,
+                                    m_light,
+                                    m_tmpMatrix);
                             return false;
                         }
                     } );
 
-                    final RetainableByteBuffer msg = Protocol.RemoveBall.create( m_byteBufferPool );
-                    m_session.sendMessage( msg );
+                    final RetainableByteBuffer msg = Protocol.RemoveBall.create(m_byteBufferPool);
+                    m_session.sendMessage(msg);
                     msg.release();
 
-                    m_ball.moveTo( m_bottomLineX, m_bottomLineY );
+                    m_ballX = getBallStartX();
+                    m_ballY = getBallStartY();
                     m_state = STATE_BALL_SET;
                 }
             }
             else if (m_state == STATE_CAP_DRAG)
             {
                 final int capIdx = m_capIdx;
-                final float cx = m_cap[capIdx].getX();
-                final float cy = m_cap[capIdx].getY();
+                final float cx = m_cup[capIdx].getX();
+                final float cy = m_cup[capIdx].getY();
 
-                if ((cx >= m_tableRectEx.left) && (cx <= m_tableRectEx.right) &&
-                    (cy >= m_tableRectEx.top) && (cy <= m_tableRectEx.bottom))
+                if ((Math.abs(cx) <= (m_tableWidth/2 - m_ballRadius)) &&
+                    (Math.abs(cy) <= (m_tableHeight/2 - m_ballRadius)))
                 {
-                    if (m_ball.isVisible() && m_ball.contains(cx, cy, m_ballRadius))
+                    if (m_ball.isVisible() && (Vector.length(m_ballX-cx, m_ballY-cy) <= m_ballRadius))
                     {
-                        /* Cap is almost over the ball, let' put it exactly on the ball. */
-                        final float bx = m_ball.getX();
-                        final float by = m_ball.getY();
-                        m_ball.setVisible( false );
+                        /* Cup is almost over the ball, let' put it exactly on the ball. */
+                        final float ballX = m_ballX;
+                        final float ballY = m_ballY;
+                        m_ball.setVisible(false);
                         m_capWithBall = m_capIdx;
 
                         short gambleTime;
                         final int capIdxx = ++m_capIdx;
-                        if (capIdxx == m_cap.length)
+                        if (capIdxx == m_cup.length)
                         {
                             /* Last cap */
                             executeOnRenderThread( new RenderThreadRunnable() {
                                 public boolean runOnRenderThread(int frameId) {
-                                    m_cap[capIdx].updateMatrix( bx, (getHeight() - by), m_ballRadius, m_tmpMatrix );
+                                    m_cup[capIdx].updateMatrix(ballX, ballY, m_ballRadius, m_tmpMatrix);
                                     return false;
                                 }
                             } );
 
-                            m_cap[capIdx].moveTo( bx, by );
+                            m_cup[capIdx].moveTo(ballX, ballY);
                             m_state = STATE_GAMBLE;
 
                             final GambleTimer gambleTimer = new GambleTimerImpl(m_gameTime);
-                            m_timerManager.scheduleTimer( getTimerQueue(), gambleTimer );
+                            m_timerManager.scheduleTimer(getTimerQueue(), gambleTimer);
 
                             gambleTime = m_gameTime;
                         }
@@ -1114,31 +1215,29 @@ public class GameServerView extends GameView
                             /* Set next cap */
                             executeOnRenderThread( new RenderThreadRunnable() {
                                 public boolean runOnRenderThread(int frameId) {
-                                    final int height = getHeight();
-                                    m_cap[capIdx].updateMatrix( bx, (height - by), m_ballRadius, m_tmpMatrix );
-                                    m_cap[capIdxx].updateMatrix( m_bottomLineX, (height-m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                    m_cup[capIdx].updateMatrix(ballX, ballY, m_ballRadius, m_tmpMatrix);
+                                    m_cup[capIdxx].updateMatrix(getBallStartX(), getBallStartY(), m_ballRadius, m_tmpMatrix);
                                     return false;
                                 }
                             } );
-                            m_cap[capIdx].moveTo( bx, by );
-                            m_cap[capIdxx].moveTo( m_bottomLineX, m_bottomLineY );
+                            m_cup[capIdx].moveTo(ballX, ballY);
+                            m_cup[capIdxx].moveTo(getBallStartX(), getBallStartY());
                             m_state = STATE_CAP_SET;
                             gambleTime = 0;
                         }
 
-                        RetainableByteBuffer msg = Protocol.RemoveBall.create( m_byteBufferPool );
-                        m_session.sendMessage( msg );
+                        RetainableByteBuffer msg = Protocol.RemoveBall.create(m_byteBufferPool);
+                        m_session.sendMessage(msg);
                         msg.release();
 
-                        final float vcx = (bx - m_tableRect.left - m_tableRect.width()/2) * m_scale;
-                        final float vcy = (m_tableRect.height()/2 - (by - m_tableRect.top)) * m_scale;
-                        msg = Protocol.PutCap.create( m_byteBufferPool, (short)capIdx, vcx, vcy, /*gambleTime*/ gambleTime );
-                        m_session.sendMessage( msg );
+                        msg = Protocol.PutCup.create(m_byteBufferPool, (short)capIdx,
+                                getVirtualX(ballX), getVirtualY(ballY), /*gambleTime*/ gambleTime);
+                        m_session.sendMessage(msg);
                         msg.release();
 
                         m_activity.playSound_CapPut();
                     }
-                    else if (m_ball.isVisible() && m_ball.contains(cx, cy, m_ballRadius*2))
+                    else if (m_ball.isVisible() && (Vector.length(m_ballX-cx, m_ballY-cy) <= m_ballRadius*2))
                     {
                         /* Intersect with ball,
                          * but does not cover even half of the ball,
@@ -1146,16 +1245,16 @@ public class GameServerView extends GameView
                          */
                         executeOnRenderThread( new RenderThreadRunnable() {
                             public boolean runOnRenderThread(int frameId) {
-                                m_cap[capIdx].updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                m_cup[capIdx].updateMatrix(getBallStartX(), getBallStartY(), m_ballRadius, m_tmpMatrix);
                                 return false;
                             }
                         } );
 
-                        final RetainableByteBuffer msg = Protocol.RemoveCap.create( m_byteBufferPool, (short)capIdx );
-                        m_session.sendMessage( msg );
+                        final RetainableByteBuffer msg = Protocol.RemoveCup.create(m_byteBufferPool, (short)capIdx);
+                        m_session.sendMessage(msg);
                         msg.release();
 
-                        m_cap[capIdx].moveTo( m_bottomLineX, m_bottomLineY );
+                        m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
                         m_state = STATE_CAP_SET;
                     }
                     else
@@ -1164,41 +1263,38 @@ public class GameServerView extends GameView
                         int idx = 0;
                         for (; idx<m_capIdx; idx++)
                         {
-                            if (m_cap[idx].contains(cx, cy, m_ballRadius*2))
+                            if (m_cup[idx].contains(cx, cy, m_ballRadius*2))
                                 break;
                         }
 
                         if (idx == m_capIdx)
                         {
                             final int capIdxx = ++m_capIdx;
-                            if (capIdxx == m_cap.length)
+                            if (capIdxx == m_cup.length)
                             {
                                 if (m_ball.isVisible())
                                 {
                                     /* Last cap should cover ball if it is still visible */
                                     executeOnRenderThread( new RenderThreadRunnable() {
                                         public boolean runOnRenderThread(int frameId) {
-                                            final int height = getHeight();
-                                            m_cap[capIdx].updateMatrix( m_bottomLineX, (height-m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                            m_cup[capIdx].updateMatrix(getBallStartX(), getBallStartY(), m_ballRadius, m_tmpMatrix);
                                             return false;
                                         }
                                     } );
 
-                                    final RetainableByteBuffer msg = Protocol.RemoveCap.create( m_byteBufferPool, (short)capIdx );
-                                    m_session.sendMessage( msg );
+                                    final RetainableByteBuffer msg = Protocol.RemoveCup.create(m_byteBufferPool, (short)capIdx);
+                                    m_session.sendMessage(msg);
                                     msg.release();
 
                                     m_capIdx = capIdx;
-                                    m_cap[capIdx].moveTo( m_bottomLineX, m_bottomLineY );
+                                    m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
                                     m_state = STATE_CAP_SET;
                                 }
                                 else
                                 {
-                                    final Cap cap = m_cap[capIdx];
-                                    final float vcx = getVirtualX( cap.getX() );
-                                    final float vcy = getVirtualY( cap.getY() );
-                                    final RetainableByteBuffer msg = Protocol.PutCap.create(
-                                            m_byteBufferPool, (short)capIdx, vcx, vcy, m_gameTime);
+                                    final Cup cup = m_cup[capIdx];
+                                    final RetainableByteBuffer msg = Protocol.PutCup.create(m_byteBufferPool,
+                                            (short)capIdx, getVirtualX(cup.getX()), getVirtualY(cup.getY()), m_gameTime);
 
                                     m_session.sendMessage( msg );
                                     msg.release();
@@ -1214,67 +1310,65 @@ public class GameServerView extends GameView
                             {
                                 executeOnRenderThread( new RenderThreadRunnable() {
                                     public boolean runOnRenderThread(int frameId) {
-                                        final int height = getHeight();
-                                        m_cap[capIdxx].updateMatrix( m_bottomLineX, (height-m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                        m_cup[capIdxx].updateMatrix(getBallStartX(), getBallStartY(), m_ballRadius, m_tmpMatrix);
                                         return false;
                                     }
                                 } );
 
-                                final Cap cap = m_cap[capIdx];
-                                final float vcx = (cap.getX() - m_tableRect.left - m_tableRect.width()/2) * m_scale;
-                                final float vcy = (m_tableRect.height()/2 - (cap.getY() - m_tableRect.top)) * m_scale;
-                                final RetainableByteBuffer msg = Protocol.PutCap.create( m_byteBufferPool, (short)capIdx, vcx, vcy, /*gambleTime*/(short)0 );
+                                final Cup cup = m_cup[capIdx];
+                                final RetainableByteBuffer msg = Protocol.PutCup.create(m_byteBufferPool, (short)capIdx,
+                                        getVirtualX(cup.getX()), getVirtualY(cup.getY()), /*gambleTime*/(short)0);
                                 m_session.sendMessage( msg );
                                 msg.release();
 
-                                m_cap[capIdxx].moveTo( m_bottomLineX, m_bottomLineY );
+                                m_cup[capIdxx].moveTo(getBallStartX(), getBallStartY());
                                 m_state = STATE_CAP_SET;
                                 m_activity.playSound_CapPut();
                             }
                         }
                         else
                         {
-                            /* Cap intersects with a cap set before, remove it. */
+                            /* Cup intersects with a cap set before, remove it. */
                             executeOnRenderThread( new RenderThreadRunnable() {
                                 public boolean runOnRenderThread(int frameId) {
-                                    m_cap[capIdx].updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                                    m_cup[capIdx].updateMatrix(getBallStartX(), getBallStartY(), m_ballRadius, m_tmpMatrix);
                                     return false;
                                 }
                             } );
 
-                            final RetainableByteBuffer msg = Protocol.RemoveCap.create( m_byteBufferPool, (short)capIdx );
-                            m_session.sendMessage( msg );
+                            final RetainableByteBuffer msg = Protocol.RemoveCup.create(m_byteBufferPool, (short)capIdx);
+                            m_session.sendMessage(msg);
                             msg.release();
 
-                            m_cap[capIdx].moveTo( m_bottomLineX, m_bottomLineY );
+                            m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
                             m_state = STATE_CAP_SET;
                         }
                     }
                 }
                 else
                 {
-                    /* Cap is not in the valid range */
+                    /* Cup is not in the valid range */
                     executeOnRenderThread( new RenderThreadRunnable() {
                         public boolean runOnRenderThread(int frameId) {
-                            m_cap[capIdx].updateMatrix( m_bottomLineX, (getHeight() - m_bottomLineY), m_ballRadius, m_tmpMatrix );
+                            m_cup[capIdx].updateMatrix(getBallStartX(), getBallStartY(), m_ballRadius, m_tmpMatrix);
                             return false;
                         }
                     } );
 
-                    final RetainableByteBuffer msg = Protocol.RemoveCap.create( m_byteBufferPool, (short)capIdx );
-                    m_session.sendMessage( msg );
+                    final RetainableByteBuffer msg = Protocol.RemoveCup.create(m_byteBufferPool, (short)capIdx);
+                    m_session.sendMessage(msg);
                     msg.release();
 
-                    m_cap[capIdx].moveTo( m_bottomLineX, m_bottomLineY );
+                    m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
                     m_state = STATE_CAP_SET;
                 }
             }
             else if (m_state == STATE_GAMBLE)
             {
                 final int pointerIndex = event.getActionIndex();
-                final int pointerId = event.getPointerId( pointerIndex );
-                Log.d( LOG_TAG, "STATE_GAMBLE: ACTION_UP/ACTION_CANCEL: pointerIndex=" + pointerIndex + " pointerId=" + pointerId );
-                m_capByPointer.remove( pointerId );
+                final int pointerId = event.getPointerId(pointerIndex);
+                Log.d(LOG_TAG, "STATE_GAMBLE: ACTION_UP/ACTION_CANCEL: pointerIndex=" + pointerIndex + " pointerId=" + pointerId);
+                m_capByPointer.remove(pointerId);
             }
             else if (m_state == STATE_GAMBLE_TIMER_TOUCH)
             {
@@ -1288,19 +1382,19 @@ public class GameServerView extends GameView
                             m_state = STATE_WAIT_REPLY;
                             executeOnRenderThread( new RenderThreadRunnable() {
                                 public boolean runOnRenderThread(int frameId) {
-                                    setBottomLineText( R.string.waiting, GAMBLE_TIMER_COLOR, 0.5f );
+                                    setBottomLineText(R.string.waiting, GAMBLE_TIMER_COLOR, 0.5f);
                                     return false;
                                 }
                             } );
 
-                            final RetainableByteBuffer msg = Protocol.Guess.create( m_byteBufferPool, (short) m_capWithBall );
-                            m_session.sendMessage( msg );
+                            final RetainableByteBuffer msg = Protocol.Guess.create(m_byteBufferPool, (short) m_capWithBall);
+                            m_session.sendMessage(msg);
                             msg.release();
                         }
                     }
                     catch (final InterruptedException ex)
                     {
-                        Log.w( LOG_TAG, "Exception:", ex );
+                        Log.w(LOG_TAG, "Exception:", ex);
                     }
                 }
                 else

@@ -31,13 +31,21 @@ import java.nio.FloatBuffer;
 
 public class Canvas3D
 {
+    public static final float [] SHADOW_MATRIX_BIAS =
+    {
+        0.5f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.5f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.5f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f
+    };
+
     public static final float [] s_identityMatrix = createIdentityMatrix();
     private static final float [] s_matrix = new float[32];
 
     private static float [] createIdentityMatrix()
     {
         final float [] matrix = new float[16];
-        Matrix.setIdentityM( matrix, 0 );
+        Matrix.setIdentityM(matrix, 0);
         return matrix;
     }
 
@@ -51,13 +59,13 @@ public class Canvas3D
         BufferedReader bufferedReader = null;
         try
         {
-            InputStream inputStream = context.getResources().openRawResource( resourceId );
-            bufferedReader = new BufferedReader( new InputStreamReader( inputStream ) );
+            InputStream inputStream = context.getResources().openRawResource(resourceId);
+            bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
             String line;
             while ((line = bufferedReader.readLine()) != null)
             {
-                stringBuilder.append( line );
-                stringBuilder.append( "\r\n" );
+                stringBuilder.append(line);
+                stringBuilder.append("\r\n");
             }
         }
         finally
@@ -70,7 +78,7 @@ public class Canvas3D
         return stringBuilder.toString();
     }
 
-    public static int createShader( Context context, int resourceId, int shaderType ) throws IOException
+    public static int createShader(Context context, int resourceId, int shaderType) throws IOException
     {
         final String shaderCode = loadRawResource( context, resourceId );
         final int shaderId = GLES20.glCreateShader( shaderType );
@@ -80,15 +88,15 @@ public class Canvas3D
         GLES20.glGetShaderiv( shaderId, GLES20.GL_COMPILE_STATUS, compileStatus, 0 );
         if (compileStatus[0] != GLES20.GL_TRUE)
         {
-            final String infoLog = GLES20.glGetShaderInfoLog( shaderId );
-            GLES20.glDeleteShader( shaderId );
-            throw new IOException( infoLog );
+            final String infoLog = GLES20.glGetShaderInfoLog(shaderId);
+            GLES20.glDeleteShader(shaderId);
+            throw new IOException(infoLog);
         }
         return shaderId;
     }
 
     public static int createProgram(
-            Context context, int vertexShaderResourceId, int fragmentShaderResourceId ) throws IOException
+            Context context, int vertexShaderResourceId, int fragmentShaderResourceId) throws IOException
     {
         final int vertexShaderId = createShader( context, vertexShaderResourceId, GLES20.GL_VERTEX_SHADER );
         final int fragmentShaderId = createShader( context, fragmentShaderResourceId, GLES20.GL_FRAGMENT_SHADER );
@@ -124,17 +132,17 @@ public class Canvas3D
         {
             final int [] textureId = new int[1];
             GLES20.glGenTextures( 1, textureId , 0 );
-            if (textureId [0] == 0)
+            if (textureId[0] == 0)
                 throw new IOException( "glGenTextures() failed" );
             m_textureId = textureId[0];
 
             final int bufferCapacity = (Float.SIZE/Byte.SIZE) * (3 * 4);
-            final ByteBuffer byteBuffer = ByteBuffer.allocateDirect( bufferCapacity );
-            byteBuffer.order( ByteOrder.nativeOrder() );
+            final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(bufferCapacity);
+            byteBuffer.order(ByteOrder.nativeOrder());
             m_vertexData = byteBuffer.asFloatBuffer();
         }
 
-        public void setBitmap( Bitmap bitmap )
+        public void setBitmap(Bitmap bitmap)
         {
             final int width = bitmap.getWidth();
             final int height = bitmap.getHeight();
@@ -142,32 +150,28 @@ public class Canvas3D
             {
                 final int right = (width - 1);
                 final int bottom = -(height - 1);
-                m_vertexData.position( 0 );
-                m_vertexData.put( 0f );
-                m_vertexData.put( 0f );
-                m_vertexData.put( 0f );
-                m_vertexData.put( 0f );
-                m_vertexData.put( bottom );
-                m_vertexData.put( 0f );
-                m_vertexData.put( right );
-                m_vertexData.put( 0f );
-                m_vertexData.put( 0f );
-                m_vertexData.put( right );
-                m_vertexData.put( bottom );
-                m_vertexData.put( 0f );
+                m_vertexData.position(0);
+                m_vertexData.put(0f);
+                m_vertexData.put(bottom);
+                m_vertexData.put(0f);
+                m_vertexData.put(0f);
+                m_vertexData.put(right);
+                m_vertexData.put(bottom);
+                m_vertexData.put(right);
+                m_vertexData.put(0f);
 
-                GLES20.glBindTexture( GLES20.GL_TEXTURE_2D, m_textureId );
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, m_textureId);
 
-                GLES20.glTexParameteri( GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR );
-                GLES20.glTexParameteri( GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR );
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
 
                 m_hasAlpha = bitmap.hasAlpha();
                 if (m_hasAlpha)
-                    GLUtils.texImage2D( GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, bitmap, 0 );
+                    GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, bitmap, 0);
                 else
-                    GLUtils.texImage2D( GLES20.GL_TEXTURE_2D, 0, bitmap, 0 );
+                    GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
 
-                GLES20.glBindTexture( GLES20.GL_TEXTURE_2D, 0 );
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
             }
             else
                 throw new AssertionError();
@@ -184,6 +188,10 @@ public class Canvas3D
 
     private static class SpriteDrawer
     {
+        private static final String SV_MATRIX = "u_m4Matrix";
+        private static final String SV_POSITION = "a_v4Position";
+        private static final String SV_TEXTURE_MAP = "a_v2TextureMap";
+        private static final String SV_TEXTURE_UNIT = "u_sTextureUnit";
         private final int m_programId;
         private final int m_matrixLocation;
         private final int m_positionLocation;
@@ -191,79 +199,83 @@ public class Canvas3D
         private final int m_textureUnitLocation;
         private final FloatBuffer m_textureMap;
 
-        public SpriteDrawer( Context context ) throws IOException
+        public SpriteDrawer(Context context) throws IOException
         {
-            final int vertexShaderId = createShader( context, R.raw.sprite_vs, GLES20.GL_VERTEX_SHADER );
-            final int fragmentShaderId = createShader( context, R.raw.sprite_fs, GLES20.GL_FRAGMENT_SHADER );
+            final int vertexShaderId = createShader(context, R.raw.sprite_vs, GLES20.GL_VERTEX_SHADER);
+            final int fragmentShaderId = createShader(context, R.raw.sprite_fs, GLES20.GL_FRAGMENT_SHADER);
 
             m_programId = GLES20.glCreateProgram();
-            GLES20.glAttachShader( m_programId, vertexShaderId );
-            GLES20.glAttachShader( m_programId, fragmentShaderId );
-            GLES20.glLinkProgram( m_programId );
+            GLES20.glAttachShader(m_programId, vertexShaderId);
+            GLES20.glAttachShader(m_programId, fragmentShaderId);
+            GLES20.glLinkProgram(m_programId);
 
             final int [] linkStatus = new int[1];
-            GLES20.glGetProgramiv( m_programId, GLES20.GL_LINK_STATUS, linkStatus, 0 );
+            GLES20.glGetProgramiv(m_programId, GLES20.GL_LINK_STATUS, linkStatus, 0);
             if (linkStatus[0] == 0)
                 throw new IOException();
 
-            m_positionLocation = GLES20.glGetAttribLocation( m_programId, "vPosition" );
-            if (m_positionLocation < 0)
-                throw new IOException();
-            m_textureMapLocation = GLES20.glGetAttribLocation( m_programId, "vTextureMap" );
-            if (m_textureMapLocation < 0)
-                throw new IOException();
-            m_textureUnitLocation = GLES20.glGetUniformLocation( m_programId, "uTextureUnit" );
-            if (m_textureUnitLocation < 0)
-                throw new IOException();
-            m_matrixLocation = GLES20.glGetUniformLocation( m_programId, "uMatrix" );
+            m_matrixLocation = GLES20.glGetUniformLocation(m_programId, SV_MATRIX);
             if (m_matrixLocation < 0)
-                throw new IOException();
+                throw new IOException(SV_MATRIX);
+            m_positionLocation = GLES20.glGetAttribLocation(m_programId, SV_POSITION);
+            if (m_positionLocation < 0)
+                throw new IOException(SV_POSITION);
+            m_textureMapLocation = GLES20.glGetAttribLocation(m_programId, SV_TEXTURE_MAP);
+            if (m_textureMapLocation < 0)
+                throw new IOException(SV_TEXTURE_MAP);
+            m_textureUnitLocation = GLES20.glGetUniformLocation(m_programId, SV_TEXTURE_UNIT);
+            if (m_textureUnitLocation < 0)
+                throw new IOException(SV_TEXTURE_UNIT);
 
-            final int bufferCapacity = (Float.SIZE/Byte.SIZE) * (2 * 4);
-            final ByteBuffer byteBuffer = ByteBuffer.allocateDirect( bufferCapacity );
-            byteBuffer.order( ByteOrder.nativeOrder() );
+            final float [] textureMap = {
+                0f, 1f,
+                0f, 0f,
+                1f, 1f,
+                1f, 0f
+            };
+
+            final int bufferCapacity = (Float.SIZE/Byte.SIZE) * textureMap.length;
+            final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(bufferCapacity);
+            byteBuffer.order(ByteOrder.nativeOrder());
             m_textureMap = byteBuffer.asFloatBuffer();
-
-            m_textureMap.put( 0f ); m_textureMap.put( 0f );
-            m_textureMap.put( 0f ); m_textureMap.put( 1f );
-            m_textureMap.put( 1f ); m_textureMap.put( 0f );
-            m_textureMap.put( 1f ); m_textureMap.put( 1f );
+            m_textureMap.put(textureMap);
+            m_textureMap.position(0);
         }
 
-        public void draw( float [] vpMatrix, Sprite sprite )
+        public void draw(float [] vpMatrix, Sprite sprite)
         {
             if (sprite.m_hasAlpha)
             {
-                GLES20.glBlendFunc( GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA );
-                GLES20.glEnable( GLES20.GL_BLEND );
+                GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+                GLES20.glEnable(GLES20.GL_BLEND);
             }
 
-            Matrix.translateM( s_matrix, 16, s_identityMatrix, 0, sprite.x, sprite.y, sprite.z );
-            Matrix.multiplyMM( s_matrix, 0, vpMatrix, 0, s_matrix, 16 );
+            Matrix.translateM(s_matrix, 16, s_identityMatrix, 0, sprite.x, sprite.y, sprite.z);
+            Matrix.multiplyMM(s_matrix, 0, vpMatrix, 0, s_matrix, 16);
 
-            GLES20.glUseProgram( m_programId );
+            GLES20.glUseProgram(m_programId);
 
             final FloatBuffer vertexData = sprite.m_vertexData;
             vertexData.position(0);
-            GLES20.glVertexAttribPointer( m_positionLocation, 3, GLES20.GL_FLOAT, false, 0, vertexData );
-            GLES20.glEnableVertexAttribArray( m_positionLocation );
+            GLES20.glVertexAttribPointer(m_positionLocation, 2, GLES20.GL_FLOAT, false, 0, vertexData);
+            GLES20.glEnableVertexAttribArray(m_positionLocation);
 
-            m_textureMap.position( 0 );
-            GLES20.glVertexAttribPointer( m_textureMapLocation, 2, GLES20.GL_FLOAT, false, 0, m_textureMap );
-            GLES20.glEnableVertexAttribArray( m_textureMapLocation );
+            m_textureMap.position(0);
+            GLES20.glVertexAttribPointer(m_textureMapLocation, 2, GLES20.GL_FLOAT, false, 0, m_textureMap);
+            GLES20.glEnableVertexAttribArray(m_textureMapLocation);
 
-            GLES20.glActiveTexture( GLES20.GL_TEXTURE0 );
-            GLES20.glBindTexture( GLES20.GL_TEXTURE_2D, sprite.m_textureId );
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, sprite.m_textureId);
 
-            GLES20.glUniform1i( m_textureUnitLocation, 0 );
+            GLES20.glUniform1i(m_textureUnitLocation, 0);
 
-            GLES20.glUniformMatrix4fv( m_matrixLocation, 1, false, s_matrix, 0 );
-            GLES20.glDrawArrays( GLES20.GL_TRIANGLE_STRIP, 0, 4 );
+            GLES20.glUniformMatrix4fv(m_matrixLocation, 1, false, s_matrix, 0);
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
 
-            GLES20.glUseProgram( 0 );
+            GLES20.glUseProgram(0);
 
             if (sprite.m_hasAlpha)
-                GLES20.glDisable( GLES20.GL_BLEND );
+                GLES20.glDisable(GLES20.GL_BLEND);
         }
     }
 
@@ -341,12 +353,12 @@ public class Canvas3D
 
         private FloatBuffer m_fb;
 
-        public TextDrawer( Context context, int textSize ) throws IOException
+        public TextDrawer(Context context, int textSize) throws IOException
         {
             final Paint paint = new Paint();
-            paint.setColor( Color.WHITE );
-            paint.setTextSize( textSize );
-            paint.setTextAlign( Paint.Align.LEFT );
+            paint.setColor(Color.WHITE);
+            paint.setTextSize(textSize);
+            paint.setTextAlign(Paint.Align.LEFT);
 
             final int fontSpacing = (int) (paint.getFontSpacing() + 0.5);
             final int [] glyphWidth = new int[128];
@@ -444,12 +456,13 @@ public class Canvas3D
 
         public void draw( float [] vpMatrix, String str, float x, float y, float z, float textSize, int color, Paint.Align align )
         {
+            final int STRIDE = (2 + 2) * (Float.SIZE / Byte.SIZE);
             final int strLength = str.length();
-            final int capacity = Math.max(strLength, 16) * (2 * 3 * (3 + 2));
+            final int capacity = Math.max(strLength, 16) * (2 * 3 * (2 + 2));
             if ((m_fb == null) || (m_fb.capacity() < capacity))
             {
-                final ByteBuffer byteBuffer = ByteBuffer.allocateDirect( Float.SIZE/Byte.SIZE * capacity );
-                byteBuffer.order( ByteOrder.nativeOrder() );
+                final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(Float.SIZE/Byte.SIZE * capacity);
+                byteBuffer.order(ByteOrder.nativeOrder());
                 m_fb = byteBuffer.asFloatBuffer();
             }
 
@@ -507,24 +520,24 @@ public class Canvas3D
                 final float x2 = x1 + (m_glyphMap[c+1] - tx1)*scale;
 
                 /* first triangle */
-                m_fb.put( x1 ); m_fb.put( y1 ); m_fb.put( 0f );
-                m_fb.put( tx1 ); m_fb.put( ty1 );
+                m_fb.put(x1); m_fb.put(y2);
+                m_fb.put(tx1); m_fb.put(ty2);
 
-                m_fb.put( x1 ); m_fb.put( y2 ); m_fb.put( 0f );
-                m_fb.put( tx1 ); m_fb.put( ty2 );
+                m_fb.put(x1); m_fb.put(y1);
+                m_fb.put(tx1); m_fb.put(ty1);
 
-                m_fb.put( x2 ); m_fb.put( y2 ); m_fb.put( 0f );
-                m_fb.put( tx2 ); m_fb.put( ty2 );
+                m_fb.put(x2); m_fb.put(y2);
+                m_fb.put(tx2); m_fb.put(ty2);
 
                 /* second triangle */
-                m_fb.put( x1 ); m_fb.put( y1 ); m_fb.put( 0f );
-                m_fb.put( tx1 ); m_fb.put( ty1 );
+                m_fb.put(x1); m_fb.put(y1);
+                m_fb.put(tx1); m_fb.put(ty1);
 
-                m_fb.put( x2 ); m_fb.put( y2 ); m_fb.put( 0f );
-                m_fb.put( tx2 ); m_fb.put( ty2 );
+                m_fb.put(x2); m_fb.put(y1);
+                m_fb.put(tx2); m_fb.put(ty1);
 
-                m_fb.put( x2 ); m_fb.put( y1 ); m_fb.put( 0f );
-                m_fb.put( tx2 ); m_fb.put( ty1 );
+                m_fb.put(x2); m_fb.put(y2);
+                m_fb.put(tx2); m_fb.put(ty2);
 
                 x1 = x2;
             }
@@ -533,8 +546,6 @@ public class Canvas3D
             Matrix.translateM( s_matrix, 16, x, y, z );
             Matrix.multiplyMM( s_matrix, 0, vpMatrix, 0, s_matrix, 16 );
 
-            final int STRIDE = (3 + 2) * (Float.SIZE / Byte.SIZE);
-
             GLES20.glUseProgram( m_programId );
             GLES20.glBlendFunc( GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA );
             GLES20.glEnable( GLES20.GL_BLEND );
@@ -542,10 +553,10 @@ public class Canvas3D
             GLES20.glUniformMatrix4fv( m_matrixLocation, 1, false, s_matrix, 0 );
 
             m_fb.position(0);
-            GLES20.glVertexAttribPointer( m_positionLocation, 3, GLES20.GL_FLOAT, false, STRIDE, m_fb );
+            GLES20.glVertexAttribPointer( m_positionLocation, 2, GLES20.GL_FLOAT, false, STRIDE, m_fb );
             GLES20.glEnableVertexAttribArray( m_positionLocation );
 
-            m_fb.position(3);
+            m_fb.position(2);
             GLES20.glVertexAttribPointer( m_texCoordLocation, 2, GLES20.GL_FLOAT, false, STRIDE, m_fb );
             GLES20.glEnableVertexAttribArray( m_texCoordLocation );
 
@@ -566,7 +577,7 @@ public class Canvas3D
         }
     }
 
-    public Canvas3D( Context context, int textSize ) throws IOException
+    public Canvas3D(Context context, int textSize) throws IOException
     {
         m_spriteDrawer = new SpriteDrawer( context );
         m_linesDrawer = new LinesDrawer( context );

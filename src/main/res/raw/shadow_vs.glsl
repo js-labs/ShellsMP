@@ -4,6 +4,7 @@ varying vec4 v_v4Position;
 
 void main()
 {
-    v_v4Position = a_v4Position;
-    gl_Position = u_m4Matrix * a_v4Position;
+    vec4 pos = (u_m4Matrix * a_v4Position);
+    v_v4Position = pos;
+    gl_Position = pos;
 }

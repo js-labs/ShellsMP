@@ -37,13 +37,13 @@ public class GameServerActivity extends GameActivity
     {
     }
 
-    public void onCreate( Bundle savedInstanceState )
+    public void onCreate(Bundle savedInstanceState)
     {
-        super.onCreate( savedInstanceState );
-        Log.d( LOG_TAG, "onCreate" );
+        super.onCreate(savedInstanceState);
+        Log.d(LOG_TAG, "onCreate");
 
-        requestWindowFeature( Window.FEATURE_NO_TITLE );
-        getWindow().setFlags( WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN );
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         final String deviceId = (String) getIntent().getSerializableExtra( MainActivity.EXTRA_DEVICE_ID );
         final String playerName = (String) getIntent().getSerializableExtra( MainActivity.EXTRA_PLAYER_NAME );

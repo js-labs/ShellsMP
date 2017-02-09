@@ -149,6 +149,8 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
     private volatile RenderThreadRunnable m_tail;
     private int m_frameId;
 
+    private int m_viewWidth;
+    private int m_viewHeight;
     private float [] m_vpMatrix;
     private Canvas3D m_canvas3D;
     private Collider m_collider;
@@ -298,7 +300,7 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
         return (m_topReservedHeight + m_bottomReservedHeight + 2);
     }
 
-    protected short getDesiredTableHeight( int viewWidth, int viewHeight )
+    protected short getDesiredTableHeight(int viewWidth, int viewHeight)
     {
         /* Square table would be the best,
          * but if screen does not feet then wider is better than higher.
@@ -370,7 +372,10 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
         return m_pingConfig;
     }
 
-    public GameView( Context context, String deviceId, String playerName )
+    protected int getViewWidth() { return m_viewWidth; }
+    protected int getViewHeight() { return m_viewHeight; }
+
+    public GameView(Context context, String deviceId, String playerName)
     {
         super( context );
 
@@ -410,18 +415,23 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
         setRenderMode( GLSurfaceView.RENDERMODE_WHEN_DIRTY );
     }
 
-    public void onSurfaceCreated( GL10 notUsed, EGLConfig config )
+    public void onSurfaceCreated(GL10 notUsed, EGLConfig config)
     {
-        Log.d( LOG_TAG, "onSurfaceCreated" );
-        GLES20.glClearColor( 0f, 0f, 0f, 1f );
+        Log.d(LOG_TAG, "onSurfaceCreated");
+        GLES20.glEnable(GLES20.GL_CULL_FACE);
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+        GLES20.glCullFace(GLES20.GL_BACK);
+        GLES20.glFrontFace(GLES20.GL_CW);
     }
 
-    public void onSurfaceChanged( GL10 gl, int width, int height )
+    public void onSurfaceChanged(GL10 gl, int width, int height)
     {
-        Log.d( LOG_TAG, "onSurfaceChanged" );
+        Log.d(LOG_TAG, "onSurfaceChanged");
 
-        GLES20.glViewport( 0, 0, width, height );
+        GLES20.glViewport(0, 0, width, height);
 
+        m_viewWidth = width;
+        m_viewHeight = height;
         m_vpMatrix = new float[16];
         final float [] matrix = new float[32];
         Matrix.orthoM(
@@ -445,11 +455,11 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
                 /*up Y    */ 1f,
                 /*up Z    */ 0f );
 
-        Matrix.multiplyMM( m_vpMatrix, 0, matrix, 0, matrix, 16 );
+        Matrix.multiplyMM(m_vpMatrix, 0, matrix, 0, matrix, 16);
 
         try
         {
-            m_canvas3D = new Canvas3D( getContext(), /*text size for text renderer*/m_bottomReservedHeight );
+            m_canvas3D = new Canvas3D(getContext(), /*text size for text renderer*/m_bottomReservedHeight);
             m_statusLine = new Canvas3D.Sprite();
 
             final Bitmap statusLineBitmap = createStatusLine();
@@ -487,21 +497,22 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
         }
     }
 
-    public void onDrawFrame( GL10 gl )
+    public void onDrawFrame(GL10 gl)
     {
         //Log.d( LOG_TAG, "onDrawFrame" );
-        GLES20.glClear( GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT );
-        onDrawFrame( m_vpMatrix, m_canvas3D );
+        GLES20.glClearColor(0f, 0f, 0f, 1f);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        onDrawFrame(m_vpMatrix, m_canvas3D);
     }
 
-    public void onDrawFrame( float [] vpMatrix, Canvas3D canvas3D )
+    public void onDrawFrame(float [] vpMatrix, Canvas3D canvas3D)
     {
-        canvas3D.draw( vpMatrix, m_statusLine );
+        canvas3D.draw(vpMatrix, m_statusLine);
 
         if (m_statusLineDebug != null)
         {
             m_statusLineDebug.position(0);
-            canvas3D.drawLines( vpMatrix, 3, 5, m_statusLineDebug, Color.RED );
+            canvas3D.drawLines(vpMatrix, 3, 5, m_statusLineDebug, Color.RED);
         }
     }
 }

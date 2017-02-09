@@ -35,23 +35,23 @@
         <field name="y" type="float"/>
     </message>
     <message id="8" name="remove ball"/>
-    <message id="9" name="drag cap">
+    <message id="9" name="drag cup">
         <field name="id" type="short"/>
         <field name="x" type="float"/>
         <field name="y" type="float"/>
         <field name="z" type="float"/>
     </message>
-    <message id="10" name="put cap">
+    <message id="10" name="put cup">
         <field name="id" type="short"/>
         <field name="x" type="float"/>
         <field name="y" type="float"/>
         <field name="gamble time" type="short"/>
     </message>
-    <message id="11" name="remove cap">
+    <message id="11" name="remove cup">
         <field name="id" type="short"/>
     </message>
     <message id="12" name="guess">
-        <field name="cap with ball" type="short"/>
+        <field name="cup with ball" type="short"/>
     </message>
     <message id="13" name="guess reply">
         <field name="found" type="boolean"/>

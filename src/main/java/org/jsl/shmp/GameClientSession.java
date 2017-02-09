@@ -31,13 +31,13 @@ public class GameClientSession extends GameSession
             Session session,
             StreamDefragger streamDefragger,
             PingConfig pingConfig,
-            GameClientView view )
+            GameClientView view)
     {
-        super( session, streamDefragger, pingConfig, view );
+        super(session, streamDefragger, pingConfig, view);
         m_view = view;
     }
 
-    public int onMessageReceived( int messageID, RetainableByteBuffer msg )
+    public int onMessageReceived(int messageID, RetainableByteBuffer msg)
     {
         switch (messageID)
         {
@@ -48,7 +48,7 @@ public class GameClientSession extends GameSession
                     Protocol.DragBall.print(sb, msg);
                     Log.v(LOG_PROTOCOL, sb.toString());
                 }
-                m_view.dragBallCT(Protocol.DragBall.getX(msg), Protocol.DragBall.getY(msg));
+                m_view.dragBallCT(Protocol.DragBall.getX(msg), Protocol.DragBall.getY(msg), 2f);
             break;
 
             case Protocol.PutBall.ID:
@@ -71,42 +71,42 @@ public class GameClientSession extends GameSession
                 m_view.removeBallCT();
             break;
 
-            case Protocol.DragCap.ID:
+            case Protocol.DragCup.ID:
                 if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
                 {
                     final StringBuilder sb = new StringBuilder();
-                    Protocol.DragCap.print(sb, msg);
+                    Protocol.DragCup.print(sb, msg);
                     Log.v(LOG_PROTOCOL, sb.toString());
                 }
                 m_view.setCapPositionCT(
-                        Protocol.DragCap.getId(msg),
-                        Protocol.DragCap.getX(msg),
-                        Protocol.DragCap.getY(msg),
-                        Protocol.DragCap.getZ(msg) );
+                        Protocol.DragCup.getId(msg),
+                        Protocol.DragCup.getX(msg),
+                        Protocol.DragCup.getY(msg),
+                        Protocol.DragCup.getZ(msg));
             break;
 
-            case Protocol.PutCap.ID:
+            case Protocol.PutCup.ID:
                 if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
                 {
                     final StringBuilder sb = new StringBuilder();
-                    Protocol.PutCap.print(sb, msg);
+                    Protocol.PutCup.print(sb, msg);
                     Log.v(LOG_PROTOCOL, sb.toString());
                 }
                 m_view.putCapCT(
-                        Protocol.PutCap.getId(msg),
-                        Protocol.PutCap.getX(msg),
-                        Protocol.PutCap.getY(msg),
-                        Protocol.PutCap.getGambleTime(msg) );
+                        Protocol.PutCup.getId(msg),
+                        Protocol.PutCup.getX(msg),
+                        Protocol.PutCup.getY(msg),
+                        Protocol.PutCup.getGambleTime(msg));
             break;
 
-            case Protocol.RemoveCap.ID:
+            case Protocol.RemoveCup.ID:
                 if (Log.isLoggable(LOG_PROTOCOL, Log.VERBOSE))
                 {
                     final StringBuilder sb = new StringBuilder();
-                    Protocol.RemoveCap.print(sb, msg);
+                    Protocol.RemoveCup.print(sb, msg);
                     Log.v(LOG_PROTOCOL, sb.toString());
                 }
-                m_view.removeCapCT( Protocol.RemoveCap.getId(msg) );
+                m_view.removeCapCT(Protocol.RemoveCup.getId(msg));
             break;
 
             case Protocol.Guess.ID:
@@ -116,7 +116,7 @@ public class GameClientSession extends GameSession
                     Protocol.Guess.print(sb, msg);
                     Log.v(LOG_PROTOCOL, sb.toString());
                 }
-                m_view.guessCT( Protocol.Guess.getCapWithBall(msg) );
+                m_view.guessCT(Protocol.Guess.getCupWithBall(msg));
             break;
 
             default:

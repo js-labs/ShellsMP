@@ -68,14 +68,14 @@ public class GameActivity extends Activity
                 WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED );
 
-        final ActivityManager activityManager = (ActivityManager) getSystemService( Context.ACTIVITY_SERVICE);
+        final ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         final ConfigurationInfo configurationInfo = activityManager.getDeviceConfigurationInfo();
         //final boolean supportsEs2 = configurationInfo.reqGlEsVersion >= 0x20000;
         Log.d( LOG_TAG, "Supported OpenGL API: " + configurationInfo.reqGlEsVersion );
 
         m_soundPool = new SoundPool( 3, AudioManager.STREAM_MUSIC, 0 );
         m_soundBallSet = m_soundPool.load( this, R.raw.ball_set, 1 );
-        m_soundCapSet = m_soundPool.load( this, R.raw.cap_set, 1 );
+        m_soundCapSet = m_soundPool.load( this, R.raw.cup_set, 1 );
         m_soundTick = m_soundPool.load( this, R.raw.tick, 1 );
     }
 

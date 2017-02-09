@@ -20,5 +20,5 @@ package org.jsl.shmp;
 
 public interface Model
 {
-    void draw( float [] mvpMatrix, int mvpMatrixOffset, float [] lightPosition, int lightPositionOffset );
+    void draw(float [] mvpMatrix, int mvpMatrixOffset, float [] light, int lightOffset);
 }
