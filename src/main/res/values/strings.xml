@@ -17,6 +17,7 @@
     <string name="ping">ping: </string>
     <string name="player_name">Player name</string>
     <string name="port">Port: </string>
+    <string name="render_shadows">Render shadows</string>
     <string name="quit_game_before_end">Quit game before end. You lost!</string>
     <string name="sec">sec</string>
     <string name="set">Set</string>

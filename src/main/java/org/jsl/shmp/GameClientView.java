@@ -35,6 +35,7 @@ import javax.microedition.khronos.opengles.GL10;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 public class GameClientView extends GameView
@@ -241,16 +242,29 @@ public class GameClientView extends GameView
         {
             if (m_visible)
             {
-                final float [] shadowMatrix = shadowObject.matrix;
-                final int shadowTextureId = shadowObject.textureId;
-                Matrix.multiplyMM(tmp, 0, vpMatrix, 0, m_matrix, 0);
-                Matrix.multiplyMV(tmp, 16, m_matrix, 16, eyePosition.v, eyePosition.offs);
-                Matrix.multiplyMV(tmp, 20, m_matrix, 16, light.v, light.offs);
-                Matrix.multiplyMM(tmp, 32, shadowMatrix, 16, m_matrix, 0);
-                tmp[20+3] = light.get(4);
-                tmp[20+4] = light.get(5);
-                tmp[20+5] = light.get(6);
-                m_model.draw(tmp, 0, tmp, 16, tmp, 20, tmp, 32, shadowTextureId);
+                if (shadowObject == null)
+                {
+                    Matrix.multiplyMM(tmp, 0, vpMatrix, 0, m_matrix, 0);
+                    Matrix.multiplyMV(tmp, 16, m_matrix, 16, eyePosition.v, eyePosition.offs);
+                    Matrix.multiplyMV(tmp, 20, m_matrix, 16, light.v, light.offs);
+                    tmp[20+3] = light.get(4);
+                    tmp[20+4] = light.get(5);
+                    tmp[20+5] = light.get(6);
+                    m_model.draw(tmp, 0, tmp, 16, tmp, 20, null, 0, 0);
+                }
+                else
+                {
+                    final float[] shadowMatrix = shadowObject.matrix;
+                    final int shadowTextureId = shadowObject.textureId;
+                    Matrix.multiplyMM(tmp, 0, vpMatrix, 0, m_matrix, 0);
+                    Matrix.multiplyMV(tmp, 16, m_matrix, 16, eyePosition.v, eyePosition.offs);
+                    Matrix.multiplyMV(tmp, 20, m_matrix, 16, light.v, light.offs);
+                    Matrix.multiplyMM(tmp, 32, shadowMatrix, 16, m_matrix, 0);
+                    tmp[20+3] = light.get(4);
+                    tmp[20+4] = light.get(5);
+                    tmp[20+5] = light.get(6);
+                    m_model.draw(tmp, 0, tmp, 16, tmp, 20, tmp, 32, shadowTextureId);
+                }
             }
         }
 
@@ -560,10 +574,10 @@ public class GameClientView extends GameView
                 GLES20.glViewport(0, 0, viewWidth, viewHeight);
             }
 
-            m_table.draw(m_tableMatrix, m_eyePosition, m_light, m_shadowObject);
-            m_ball.draw(m_tableMatrix, m_light, m_tmpMatrix);
+            m_table.draw(m_tableMatrix, m_eyePosition, m_light, m_shadowObject, tmp, 0);
+            m_ball.draw(m_tableMatrix, m_light, tmp);
             for (Cup cup : m_cup)
-                cup.draw(m_tableMatrix, m_eyePosition, m_light, m_shadowObject, m_tmpMatrix);
+                cup.draw(m_tableMatrix, m_eyePosition, m_light, m_shadowObject, tmp);
         }
 
         if (m_bottomLineString != null)
@@ -612,11 +626,20 @@ public class GameClientView extends GameView
                 final Context context = getContext();
                 try
                 {
+                    HashSet<String> macro;
+                    if (m_shadowObject == null)
+                        macro = null;
+                    else
+                    {
+                        macro = new HashSet<String>();
+                        macro.add("RENDER_SHADOWS");
+                    }
+
                     m_renderThreadId = Thread.currentThread().getId();
-                    m_table = new Table(context);
+                    m_table = new Table(context, macro);
                     m_ball = new Ball(context, BALL_COLOR);
 
-                    final ModelCup modelCup = new ModelCup(context, CAP_STRIPES);
+                    final ModelCup modelCup = new ModelCup(context, CAP_STRIPES, macro);
                     m_cup = new Cup[3];
                     for (int idx = 0; idx< m_cup.length; idx++)
                         m_cup[idx] = new Cup(modelCup);

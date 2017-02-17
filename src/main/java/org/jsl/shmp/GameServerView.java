@@ -35,6 +35,7 @@ import org.jsl.collider.*;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.io.IOException;
@@ -208,21 +209,24 @@ public class GameServerView extends GameView
             m_draw = true;
         }
 
-        public void draw(
-                float [] vpMatrix, Vector eyePosition, Vector light,
-                float [] shadowMatrix, int shadowMatrixOffset, int shadowTextureId,
-                float [] tmp, int tmpOffset)
+        public void draw(float [] vpMatrix, Vector eyePosition, Vector light, ShadowObject shadowObject, float [] tmp, int tmpOffset)
         {
             if (m_draw)
             {
                 Matrix.multiplyMM(tmp, tmpOffset, vpMatrix, 0, m_matrix, 0);
                 Matrix.multiplyMV(tmp, tmpOffset+16, m_matrix, 16, eyePosition.v, eyePosition.offs);
                 Matrix.multiplyMV(tmp, tmpOffset+20, m_matrix, 16, light.v, light.offs);
-                Matrix.multiplyMM(tmp, tmpOffset+32, shadowMatrix, shadowMatrixOffset, m_matrix, 0);
                 tmp[tmpOffset+20+3] = light.get(4);
                 tmp[tmpOffset+20+4] = light.get(5);
                 tmp[tmpOffset+20+5] = light.get(6);
-                m_model.draw(tmp, tmpOffset, tmp, tmpOffset+16, tmp, tmpOffset+20, tmp, tmpOffset+32, shadowTextureId);
+                if (shadowObject == null)
+                    m_model.draw(tmp, tmpOffset, tmp, tmpOffset + 16, tmp, tmpOffset + 20, null, 0, 0);
+                else
+                {
+                    Matrix.multiplyMM(tmp, tmpOffset+32, shadowObject.matrix, 16, m_matrix, 0);
+                    m_model.draw(tmp, tmpOffset, tmp, tmpOffset + 16, tmp, tmpOffset + 20,
+                            tmp, tmpOffset + 32, shadowObject.textureId);
+                }
             }
         }
 
@@ -328,6 +332,7 @@ public class GameServerView extends GameView
 
     private final GameServerActivity m_activity;
     private final NsdManager m_nsdManager;
+    private final boolean m_renderShadows;
     private final short m_gameTime;
     private final Cup [] m_cup;
     private final String m_strPort;
@@ -562,15 +567,23 @@ public class GameServerView extends GameView
         return bitmap;
     }
 
-    public GameServerView(GameServerActivity activity, String deviceId, String playerName, short gameTime, short caps, NsdManager nsdManager)
+    public GameServerView(
+            GameServerActivity activity,
+            String deviceId,
+            String playerName,
+            NsdManager nsdManager,
+            boolean renderShadows,
+            short gameTime,
+            short caps)
     {
         super(activity, deviceId, playerName);
 
         m_activity = activity;
         m_nsdManager = nsdManager;
+        m_renderShadows = renderShadows;
         m_gameTime = gameTime;
         m_cup = new Cup[caps];
-        m_strPort = getResources().getString( R.string.port );
+        m_strPort = getResources().getString(R.string.port);
         m_ballRadius = (getBottomReservedHeight() / 3);
         m_timerManager = new TimerManager();
 
@@ -599,30 +612,35 @@ public class GameServerView extends GameView
 
         try
         {
-            final float [] light =
-            {
-                -(width / 2f), // x
-                (height / 2f), // y
-                 (width * 2f), // z
-                           0f, // w
-                           1f, // r
-                           1f, // g
-                           1f  // b
+            final float[] light = {-(width / 2f), // x
+                    (height / 2f), // y
+                    (width * 2f),  // z
+                    0f, // w
+                    1f, // r
+                    1f, // g
+                    1f  // b
             };
 
             m_light = new Vector(light, 0);
             m_eyePosition = new Vector(0f, 0f, 100f);
-            m_shadowObject = ShadowObject.create(width, m_light, m_tmpMatrix);
+
+            final HashSet<String> macro = new HashSet<String>();
+            if (m_renderShadows)
+            {
+                m_shadowObject = ShadowObject.create(width, m_light, m_tmpMatrix);
+                if (m_shadowObject != null)
+                    macro.add("RENDER_SHADOWS");
+            }
 
             /***********************/
 
             final Context context = getContext();
-            m_table = new Table(context);
+            m_table = new Table(context, macro);
             m_ball = new Ball(context, BALL_COLOR);
 
-            final ModelCup modelCup = new ModelCup(context, CAP_STRIPES);
+            final ModelCup modelCup = new ModelCup(context, CAP_STRIPES, macro);
             for (int idx = 0; idx< m_cup.length; idx++)
-                m_cup[idx] = new Cup( idx, modelCup);
+                m_cup[idx] = new Cup(idx, modelCup);
 
             final Collider collider = startCollider();
             final GameAcceptor acceptor = new GameAcceptor(
@@ -693,14 +711,11 @@ public class GameServerView extends GameView
 
             Matrix.multiplyMM(tmp, 0, vpMatrix, 0, m_tableMatrix, 0);
 
-            m_table.draw(tmp, m_eyePosition, m_light, m_shadowObject);
+            m_table.draw(tmp, m_eyePosition, m_light, m_shadowObject, tmp, 16);
             m_ball.draw(tmp, m_light, tmp, 16);
 
             for (Cup cup : m_cup)
-            {
-                cup.draw(tmp, m_eyePosition, m_light,
-                        m_shadowObject.matrix, 16, m_shadowObject.textureId, tmp, 16);
-            }
+                cup.draw(tmp, m_eyePosition, m_light, m_shadowObject, tmp, 16);
         }
 
         if (m_bottomLineText != null)
@@ -708,9 +723,9 @@ public class GameServerView extends GameView
             canvas3D.drawText(
                     vpMatrix,
                     m_bottomLineText,
-                    /*x*/ m_bottomLineX,
-                    /*y*/ (getHeight() - m_bottomLineY),
-                    /*z*/ 1f,
+                    m_bottomLineX,
+                    (getHeight() - m_bottomLineY),
+                    1f,
                     m_bottomLineTextFontSize,
                     m_bottomLineTextColor,
                     Paint.Align.CENTER );

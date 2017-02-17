@@ -28,6 +28,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.Set;
 
 public class Canvas3D
 {
@@ -45,39 +46,48 @@ public class Canvas3D
     private final LinesDrawer m_linesDrawer;
     private final TextDrawer m_textDrawer;
 
-    private static String loadRawResource( Context context, int resourceId ) throws IOException
+    private static String loadRawResource(Context context, int resourceId, Set<String> macro) throws IOException
     {
-        StringBuilder stringBuilder = new StringBuilder();
-        BufferedReader bufferedReader = null;
+        final StringBuilder sb = new StringBuilder();
+        BufferedReader reader = null;
         try
         {
-            InputStream inputStream = context.getResources().openRawResource(resourceId);
-            bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-            String line;
-            while ((line = bufferedReader.readLine()) != null)
+            final InputStream inputStream = context.getResources().openRawResource(resourceId);
+            reader = new BufferedReader(new InputStreamReader(inputStream));
+
+            if (macro != null)
             {
-                stringBuilder.append(line);
-                stringBuilder.append("\r\n");
+                for(String s : macro)
+                {
+                    sb.append("#define ");
+                    sb.append(s);
+                    sb.append(" 1\r\n");
+                }
+            }
+
+            String line;
+            while ((line = reader.readLine()) != null)
+            {
+                sb.append(line);
+                sb.append("\r\n");
             }
         }
         finally
         {
-            if (bufferedReader != null)
-            {
-                bufferedReader.close();
-            }
+            if (reader != null)
+                reader.close();
         }
-        return stringBuilder.toString();
+        return sb.toString();
     }
 
-    public static int createShader(Context context, int resourceId, int shaderType) throws IOException
+    public static int createShader(Context context, int resourceId, int shaderType, Set<String> macro) throws IOException
     {
-        final String shaderCode = loadRawResource( context, resourceId );
-        final int shaderId = GLES20.glCreateShader( shaderType );
-        GLES20.glShaderSource( shaderId, shaderCode );
-        GLES20.glCompileShader( shaderId );
+        final String shaderCode = loadRawResource(context, resourceId, macro);
+        final int shaderId = GLES20.glCreateShader(shaderType);
+        GLES20.glShaderSource(shaderId, shaderCode);
+        GLES20.glCompileShader(shaderId);
         final int [] compileStatus = new int[1];
-        GLES20.glGetShaderiv( shaderId, GLES20.GL_COMPILE_STATUS, compileStatus, 0 );
+        GLES20.glGetShaderiv(shaderId, GLES20.GL_COMPILE_STATUS, compileStatus, 0);
         if (compileStatus[0] != GLES20.GL_TRUE)
         {
             final String infoLog = GLES20.glGetShaderInfoLog(shaderId);
@@ -88,10 +98,10 @@ public class Canvas3D
     }
 
     public static int createProgram(
-            Context context, int vertexShaderResourceId, int fragmentShaderResourceId) throws IOException
+            Context context, int vertexShaderResourceId, int fragmentShaderResourceId, Set<String> macro) throws IOException
     {
-        final int vertexShaderId = createShader( context, vertexShaderResourceId, GLES20.GL_VERTEX_SHADER );
-        final int fragmentShaderId = createShader( context, fragmentShaderResourceId, GLES20.GL_FRAGMENT_SHADER );
+        final int vertexShaderId = createShader(context, vertexShaderResourceId, GLES20.GL_VERTEX_SHADER, macro);
+        final int fragmentShaderId = createShader(context, fragmentShaderResourceId, GLES20.GL_FRAGMENT_SHADER, macro);
 
         final int programId = GLES20.glCreateProgram();
         GLES20.glAttachShader( programId, vertexShaderId );
@@ -193,8 +203,8 @@ public class Canvas3D
 
         public SpriteDrawer(Context context) throws IOException
         {
-            final int vertexShaderId = createShader(context, R.raw.sprite_vs, GLES20.GL_VERTEX_SHADER);
-            final int fragmentShaderId = createShader(context, R.raw.sprite_fs, GLES20.GL_FRAGMENT_SHADER);
+            final int vertexShaderId = createShader(context, R.raw.sprite_vs, GLES20.GL_VERTEX_SHADER, null);
+            final int fragmentShaderId = createShader(context, R.raw.sprite_fs, GLES20.GL_FRAGMENT_SHADER, null);
 
             m_programId = GLES20.glCreateProgram();
             GLES20.glAttachShader(m_programId, vertexShaderId);
@@ -280,26 +290,26 @@ public class Canvas3D
 
         public LinesDrawer( Context context ) throws IOException
         {
-            final int vertexShaderId = createShader( context, R.raw.solid_line_vs, GLES20.GL_VERTEX_SHADER );
-            final int fragmentShaderId = createShader( context, R.raw.solid_line_fs, GLES20.GL_FRAGMENT_SHADER );
+            final int vertexShaderId = createShader(context, R.raw.solid_line_vs, GLES20.GL_VERTEX_SHADER, null);
+            final int fragmentShaderId = createShader(context, R.raw.solid_line_fs, GLES20.GL_FRAGMENT_SHADER, null);
 
             m_programId = GLES20.glCreateProgram();
-            GLES20.glAttachShader( m_programId, vertexShaderId );
-            GLES20.glAttachShader( m_programId, fragmentShaderId );
-            GLES20.glLinkProgram( m_programId );
+            GLES20.glAttachShader(m_programId, vertexShaderId);
+            GLES20.glAttachShader(m_programId, fragmentShaderId);
+            GLES20.glLinkProgram(m_programId);
 
             final int [] linkStatus = new int[1];
-            GLES20.glGetProgramiv( m_programId, GLES20.GL_LINK_STATUS, linkStatus, 0 );
+            GLES20.glGetProgramiv(m_programId, GLES20.GL_LINK_STATUS, linkStatus, 0);
             if (linkStatus[0] == 0)
                 throw new IOException();
 
-            m_matrixLocation = GLES20.glGetUniformLocation( m_programId, "uMatrix" );
+            m_matrixLocation = GLES20.glGetUniformLocation(m_programId, "uMatrix");
             if (m_matrixLocation < 0)
                 throw new IOException();
-            m_positionLocation = GLES20.glGetAttribLocation( m_programId, "vPosition" );
+            m_positionLocation = GLES20.glGetAttribLocation(m_programId, "vPosition");
             if (m_positionLocation < 0)
                 throw new IOException();
-            m_colorLocation = GLES20.glGetUniformLocation( m_programId, "uColor" );
+            m_colorLocation = GLES20.glGetUniformLocation(m_programId, "uColor");
             if (m_colorLocation < 0)
                 throw new IOException();
         }
@@ -401,13 +411,13 @@ public class Canvas3D
 
             /* Initialize shader program */
 
-            final int vertexShaderId = createShader( context, R.raw.text_vs, GLES20.GL_VERTEX_SHADER );
-            final int fragmentShaderId = createShader( context, R.raw.text_fs, GLES20.GL_FRAGMENT_SHADER );
+            final int vertexShaderId = createShader(context, R.raw.text_vs, GLES20.GL_VERTEX_SHADER, null);
+            final int fragmentShaderId = createShader(context, R.raw.text_fs, GLES20.GL_FRAGMENT_SHADER, null);
 
             m_programId = GLES20.glCreateProgram();
-            GLES20.glAttachShader( m_programId, vertexShaderId );
-            GLES20.glAttachShader( m_programId, fragmentShaderId );
-            GLES20.glLinkProgram( m_programId );
+            GLES20.glAttachShader(m_programId, vertexShaderId);
+            GLES20.glAttachShader(m_programId, fragmentShaderId);
+            GLES20.glLinkProgram(m_programId);
 
             final int [] linkStatus = new int[1];
             GLES20.glGetProgramiv( m_programId, GLES20.GL_LINK_STATUS, linkStatus, 0 );
@@ -431,7 +441,7 @@ public class Canvas3D
                 throw new IOException();
 
             final int [] textureId = new int[1];
-            GLES20.glGenTextures( 1, textureId , 0 );
+            GLES20.glGenTextures(1, textureId , 0);
             if (textureId [0] == 0)
                 throw new IOException( "glGenTextures() failed" );
             m_textureId = textureId[0];

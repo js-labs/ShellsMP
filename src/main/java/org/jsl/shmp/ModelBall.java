@@ -37,7 +37,7 @@ public class ModelBall
 
         public Shadow(Context context) throws IOException
         {
-            m_programId = Canvas3D.createProgram(context, R.raw.ball_shadow_vs, R.raw.ball_shadow_fs);
+            m_programId = Canvas3D.createProgram(context, R.raw.ball_shadow_vs, R.raw.ball_shadow_fs, null);
 
             m_matrixLocation = GLES20.glGetUniformLocation(m_programId, "u_m4Matrix");
             if (m_matrixLocation < 0)
@@ -72,7 +72,7 @@ public class ModelBall
     public ModelBall(Context context, int color) throws IOException
     {
         m_color = color;
-        m_programId = Canvas3D.createProgram(context, R.raw.ball_vs, R.raw.ball_fs);
+        m_programId = Canvas3D.createProgram(context, R.raw.ball_vs, R.raw.ball_fs, null);
 
         m_matrixLocation = GLES20.glGetUniformLocation( m_programId, "u_m4Matrix" );
         if (m_matrixLocation < 0)

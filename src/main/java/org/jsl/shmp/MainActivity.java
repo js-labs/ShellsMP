@@ -416,13 +416,16 @@ public class MainActivity extends Activity
     {
         private final EditText m_editTextPlayerName;
         private final CheckBox m_checkBoxCheckWiFiStatusOnStart;
+        private final CheckBox m_checkBoxRenderShadows;
 
         public SettingsDialogClickListener(
                 EditText editTextPlayerName,
-                CheckBox checkBoxCheckWiFiStatusOnStart )
+                CheckBox checkBoxCheckWiFiStatusOnStart,
+                CheckBox checkBoxRenderShadows)
         {
             m_editTextPlayerName = editTextPlayerName;
             m_checkBoxCheckWiFiStatusOnStart = checkBoxCheckWiFiStatusOnStart;
+            m_checkBoxRenderShadows = checkBoxRenderShadows;
         }
 
         public void onClick(DialogInterface dialog, int which)
@@ -440,6 +443,7 @@ public class MainActivity extends Activity
             }
 
             editor.putBoolean(Prefs.CHECK_WIFI_STATUS_ON_START, m_checkBoxCheckWiFiStatusOnStart.isChecked());
+            editor.putBoolean(Prefs.RENDER_SHADOWS, m_checkBoxRenderShadows.isChecked());
             editor.apply();
         }
     }
@@ -787,15 +791,17 @@ public class MainActivity extends Activity
                 final View dialogView = layoutInflater.inflate(R.layout.dialog_settings, null);
                 final EditText editTextPlayerName = (EditText) dialogView.findViewById(R.id.editTextPlayerName);
                 final CheckBox checkBoxCheckWiFIStatusOnStart = (CheckBox) dialogView.findViewById(R.id.checkBoxCheckWiFiStatusOnStart);
+                final CheckBox checkBoxRenderShadows = (CheckBox) dialogView.findViewById(R.id.checkBoxRenderShadows);
                 editTextPlayerName.setText(m_playerName);
                 checkBoxCheckWiFIStatusOnStart.setChecked(sharedPreferences.getBoolean(Prefs.CHECK_WIFI_STATUS_ON_START, true));
+                checkBoxRenderShadows.setChecked(sharedPreferences.getBoolean(Prefs.RENDER_SHADOWS, true));
                 dialogBuilder.setTitle(R.string.settings);
                 dialogBuilder.setView(dialogView);
                 dialogBuilder.setCancelable(true);
                 final DialogInterface.OnClickListener dialogListener = new SettingsDialogClickListener(
-                        editTextPlayerName, checkBoxCheckWiFIStatusOnStart);
-                dialogBuilder.setPositiveButton( getString(R.string.set), dialogListener );
-                dialogBuilder.setNegativeButton( getString(R.string.cancel), null );
+                        editTextPlayerName, checkBoxCheckWiFIStatusOnStart, checkBoxRenderShadows);
+                dialogBuilder.setPositiveButton(getString(R.string.set), dialogListener);
+                dialogBuilder.setNegativeButton(getString(R.string.cancel), null);
                 final AlertDialog dialog = dialogBuilder.create();
                 dialog.show();
             }

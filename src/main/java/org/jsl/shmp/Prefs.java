@@ -24,6 +24,7 @@ public class Prefs
 {
     public static final String PLAYER_NAME = "player-name";
     public static final String CHECK_WIFI_STATUS_ON_START = "check-wifi-status-on-start";
+    public static final String RENDER_SHADOWS = "render-shadows";
     public static final String PING_INTERVAL = "ping-interval";
     public static final String PING_TIMEOUT = "ping-timeout";
     public static final TimeUnit PING_TIME_UNIT = TimeUnit.SECONDS;

@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.Set;
 
 class ModelCup
 {
@@ -47,7 +48,7 @@ class ModelCup
 
         public Shadow(Context context) throws IOException
         {
-            m_programId = Canvas3D.createProgram(context, R.raw.shadow_vs, R.raw.shadow_fs);
+            m_programId = Canvas3D.createProgram(context, R.raw.shadow_vs, R.raw.shadow_fs, null);
 
             m_matrixLocation = GLES20.glGetUniformLocation(m_programId, SV_MATRIX);
             if (m_matrixLocation < 0)
@@ -94,9 +95,9 @@ class ModelCup
     private final int m_bottomOffs;
     private final Shadow m_shadow;
 
-    public ModelCup(Context context, int stripes) throws IOException
+    public ModelCup(Context context, int stripes, Set<String> macro) throws IOException
     {
-        m_programId = Canvas3D.createProgram(context, R.raw.cup_vs, R.raw.cup_fs);
+        m_programId = Canvas3D.createProgram(context, R.raw.cup_vs, R.raw.cup_fs, macro);
 
         m_matrixLocation = GLES20.glGetUniformLocation(m_programId, SV_MATRIX);
         if (m_matrixLocation < 0)
@@ -114,13 +115,21 @@ class ModelCup
         if (m_colorLocation < 0)
             throw new IOException(SV_COLOR);
 
-        m_shadowMatrixLocation = GLES20.glGetUniformLocation(m_programId, SV_SHADOW_MATRIX);
-        if (m_shadowMatrixLocation < 0)
-            throw new IOException(SV_SHADOW_MATRIX);
+        if ((macro != null) && macro.contains("RENDER_SHADOWS"))
+        {
+            m_shadowMatrixLocation = GLES20.glGetUniformLocation(m_programId, SV_SHADOW_MATRIX);
+            if (m_shadowMatrixLocation < 0)
+                throw new IOException(SV_SHADOW_MATRIX);
 
-        m_shadowTextureLocation = GLES20.glGetUniformLocation(m_programId, SV_SHADOW_TEXTURE);
-        if (m_shadowMatrixLocation < 0)
-            throw new IOException(SV_SHADOW_TEXTURE);
+            m_shadowTextureLocation = GLES20.glGetUniformLocation(m_programId, SV_SHADOW_TEXTURE);
+            if (m_shadowMatrixLocation < 0)
+                throw new IOException(SV_SHADOW_TEXTURE);
+        }
+        else
+        {
+            m_shadowMatrixLocation = -1;
+            m_shadowTextureLocation = -1;
+        }
 
         m_positionLocation = GLES20.glGetAttribLocation(m_programId, SV_POSITION);
         if (m_positionLocation < 0)
@@ -268,11 +277,23 @@ class ModelCup
         GLES20.glUniformMatrix4fv(m_matrixLocation, 1, false, mvpMatrix, mvpMatrixOffset);
         GLES20.glUniform3fv(m_eyePositionLocation, 1, eyePosition, eyePositionOffset);
         GLES20.glUniform3fv(m_lightPositionLocation, 2, light, lightOffset);
-        GLES20.glUniformMatrix4fv(m_shadowMatrixLocation, 1, false, shadowMatrix, shadowMatrixOffset);
 
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, shadowTextureId);
-        GLES20.glUniform1i(m_shadowTextureLocation, 0);
+        if (shadowMatrix == null)
+        {
+            if (BuildConfig.DEBUG && (m_shadowMatrixLocation > 0))
+                throw new AssertionError();
+        }
+        else
+        {
+            if (BuildConfig.DEBUG && (m_shadowMatrixLocation < 0))
+                throw new AssertionError();
+
+            GLES20.glUniformMatrix4fv(m_shadowMatrixLocation, 1, false, shadowMatrix, shadowMatrixOffset);
+
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, shadowTextureId);
+            GLES20.glUniform1i(m_shadowTextureLocation, 0);
+        }
 
         final float red = ((float) Color.red(color)) / 255f;
         final float green = ((float)Color.green(color)) / 255f;
@@ -301,10 +322,10 @@ class ModelCup
         GLES20.glVertexAttribPointer( m_normalLocation, 3, GLES20.GL_FLOAT, false, STRIDE, m_vertexData );
         GLES20.glEnableVertexAttribArray( m_normalLocation );
 
-        GLES20.glDrawArrays( GLES20.GL_TRIANGLE_FAN, 0, m_stripes+2 );
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, m_stripes+2);
 
-        GLES20.glUseProgram( 0 );
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+        GLES20.glUseProgram(0);
     }
 
     public void drawShadow(float [] mvpMatrix, int mvpMatrixOffset)

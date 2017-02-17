@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.Set;
 
 public class Table
 {
@@ -42,9 +43,9 @@ public class Table
     private float m_meshX;
     private float m_meshY;
 
-    public Table(Context context) throws IOException
+    public Table(Context context, Set<String> macro) throws IOException
     {
-        m_programId = Canvas3D.createProgram(context, R.raw.table_vs, R.raw.table_fs);
+        m_programId = Canvas3D.createProgram(context, R.raw.table_vs, R.raw.table_fs, macro);
 
         m_matrixLocation = GLES20.glGetUniformLocation(m_programId, "u_m4Matrix");
         if (m_matrixLocation < 0)
@@ -66,13 +67,21 @@ public class Table
         if (m_eyePositionLocation < 0)
             throw new IOException();
 
-        m_shadowMatrixLocation = GLES20.glGetUniformLocation(m_programId, "u_m4ShadowMatrix");
-        if (m_shadowMatrixLocation < 0)
-            throw new IOException();
+        if ((macro != null) && macro.contains("RENDER_SHADOWS"))
+        {
+            m_shadowMatrixLocation = GLES20.glGetUniformLocation(m_programId, "u_m4ShadowMatrix");
+            if (m_shadowMatrixLocation < 0)
+                throw new IOException();
 
-        m_shadowTextureLocation = GLES20.glGetUniformLocation(m_programId, "u_shadowTexture");
-        if (m_shadowMatrixLocation < 0)
-            throw new IOException();
+            m_shadowTextureLocation = GLES20.glGetUniformLocation(m_programId, "u_shadowTexture");
+            if (m_shadowMatrixLocation < 0)
+                throw new IOException();
+        }
+        else
+        {
+            m_shadowMatrixLocation = -1;
+            m_shadowTextureLocation = -1;
+        }
 
         m_meshLocation = GLES20.glGetUniformLocation(m_programId, "u_v2Mesh");
         if (m_meshLocation < 0)
@@ -90,8 +99,8 @@ public class Table
         {
             -width/2, -height/2,
             -width/2,  height/2,
-            width/2,  -height/2,
-            width/2,   height/2
+             width/2, -height/2,
+             width/2,  height/2
         };
 
         m_vertexData.put(vertices);
@@ -101,12 +110,8 @@ public class Table
         m_meshY = (height / 10);
     }
 
-    public void draw(float [] vpMatrix, Vector eyePosition, Vector light, ShadowObject shadowObject)
+    public void draw(float [] vpMatrix, Vector eyePosition, Vector light, ShadowObject shadowObject, float [] tmp, int tmpOffset)
     {
-        final float [] shadowMatrix = shadowObject.matrix;
-        final int shadowMatrixOffset = 16;
-        final int shadowTextureId = shadowObject.textureId;
-
         GLES20.glUseProgram(m_programId);
 
         GLES20.glUniformMatrix4fv(m_matrixLocation, 1, false, vpMatrix, 0);
@@ -120,19 +125,35 @@ public class Table
         final float blue = ((float)Color.blue(color)) / 255f;
         GLES20.glUniform3f(m_colorLocation, red, green, blue);
 
-        GLES20.glUniform3fv(m_lightLocation, 2, light.v, light.offs);
+        tmp[tmpOffset] = light.getX();
+        tmp[tmpOffset+1] = light.getY();
+        tmp[tmpOffset+2] = light.getZ();
+        tmp[tmpOffset+3] = light.get(4);
+        tmp[tmpOffset+4] = light.get(5);
+        tmp[tmpOffset+5] = light.get(6);
+        GLES20.glUniform3fv(m_lightLocation, 2, tmp, tmpOffset);
         GLES20.glUniform3fv(m_eyePositionLocation, 1, eyePosition.v, eyePosition.offs);
-        GLES20.glUniformMatrix4fv(m_shadowMatrixLocation, 1, false, shadowMatrix, shadowMatrixOffset);
 
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, shadowTextureId);
-        GLES20.glUniform1i(m_shadowTextureLocation, 0);
+        if (shadowObject == null)
+        {
+            if (BuildConfig.DEBUG && (m_shadowMatrixLocation > 0))
+                throw new AssertionError();
+        }
+        else
+        {
+            if (BuildConfig.DEBUG && (m_shadowMatrixLocation < 0))
+                throw new AssertionError();
+
+            GLES20.glUniformMatrix4fv(m_shadowMatrixLocation, 1, false, shadowObject.matrix, 16);
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, shadowObject.textureId);
+            GLES20.glUniform1i(m_shadowTextureLocation, 0);
+        }
 
         GLES20.glUniform2f(m_meshLocation, m_meshX, m_meshY);
-
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
-        GLES20.glUseProgram(0);
 
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+        GLES20.glUseProgram(0);
     }
 }

@@ -20,6 +20,7 @@ package org.jsl.shmp;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.nsd.NsdManager;
 import android.os.Bundle;
 import android.util.Log;
@@ -50,10 +51,14 @@ public class GameServerActivity extends GameActivity
         final Short gameTime = (Short) getIntent().getSerializableExtra( MainActivity.EXTRA_GAME_TIME );
         final Short caps = (Short) getIntent().getSerializableExtra( MainActivity.EXTRA_CAPS );
 
+        final NsdManager nsdManager = (NsdManager) getSystemService(Context.NSD_SERVICE);
+        final SharedPreferences sharedPreferences = getPreferences(MODE_PRIVATE);
+        final boolean renderShadows = sharedPreferences.getBoolean(Prefs.RENDER_SHADOWS, true);
+
         Log.d(LOG_TAG, "onCreate: deviceId=[" + deviceId +
                 "] playerName=[" + playerName + "] gameTime=" + gameTime + " caps=" + caps);
 
-        m_view = new GameServerView(this, deviceId, playerName, gameTime, caps, (NsdManager) getSystemService(Context.NSD_SERVICE));
+        m_view = new GameServerView(this, deviceId, playerName, nsdManager, renderShadows, gameTime, caps);
         setContentView(m_view);
 
         m_pause = false;
