@@ -102,6 +102,7 @@ public class MainActivity extends Activity
 
     private static class ListViewAdapter extends ArrayAdapter<GameInfo>
     {
+        private final MainActivity m_activity;
         private final LayoutInflater m_inflater;
         private final TreeMap<String, GameInfo> m_gameInfoByServiceName;
         private GameInfo [] m_items;
@@ -110,11 +111,13 @@ public class MainActivity extends Activity
         {
             public final TextView playerName;
             public final TextView score;
+            public final Button connect;
 
-            public ViewInfo(TextView playerName, TextView score)
+            public ViewInfo(TextView playerName, TextView score, Button connect)
             {
                 this.playerName = playerName;
                 this.score = score;
+                this.connect = connect;
             }
         }
 
@@ -130,14 +133,15 @@ public class MainActivity extends Activity
             notifyDataSetChanged();
         }
 
-        public ListViewAdapter( Context context )
+        public ListViewAdapter(MainActivity activity)
         {
-            super( context, android.R.layout.simple_list_item_1 );
-            m_inflater = (LayoutInflater) context.getSystemService( Context.LAYOUT_INFLATER_SERVICE );
+            super(activity, R.layout.list_view_item_games);
+            m_activity = activity;
+            m_inflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             m_gameInfoByServiceName = new TreeMap<String, GameInfo>();
         }
 
-        public void add( GameInfo gameInfo )
+        public void add(GameInfo gameInfo)
         {
             final String serviceName = gameInfo.serviceInfo.getServiceName();
             if (m_gameInfoByServiceName.get(serviceName) == null)
@@ -149,7 +153,7 @@ public class MainActivity extends Activity
                 Log.d( LOG_TAG, "Internal error: [" + serviceName + "] already registered." );
         }
 
-        public void remove( NsdServiceInfo serviceInfo )
+        public void remove(NsdServiceInfo serviceInfo)
         {
             final String serviceName = serviceInfo.getServiceName();
             if (m_gameInfoByServiceName.remove(serviceName) != null)
@@ -167,7 +171,7 @@ public class MainActivity extends Activity
             return ((m_items == null) ? 0 : m_items.length);
         }
 
-        public GameInfo getItem( int position )
+        public GameInfo getItem(int position)
         {
             return m_items[position];
         }
@@ -177,7 +181,7 @@ public class MainActivity extends Activity
             return position;
         }
 
-        public View getView( int position, View convertView, ViewGroup parent )
+        public View getView(int position, View convertView, ViewGroup parent)
         {
             View view;
             ViewInfo viewInfo;
@@ -187,7 +191,8 @@ public class MainActivity extends Activity
                 view = m_inflater.inflate(R.layout.list_view_item_games, parent, false);
                 final TextView playerName = (TextView) view.findViewById(R.id.textViewPlayerName);
                 final TextView score = (TextView) view.findViewById(R.id.textViewScore);
-                viewInfo = new ViewInfo(playerName, score);
+                final Button connect = (Button) view.findViewById(R.id.buttonConnect);
+                viewInfo = new ViewInfo(playerName, score, connect);
                 view.setTag(viewInfo);
             }
             else
@@ -196,8 +201,15 @@ public class MainActivity extends Activity
                 viewInfo = (ViewInfo) view.getTag();
             }
 
-            viewInfo.playerName.setText(m_items[position].playerName);
-            viewInfo.score.setText(m_items[position].score);
+            final GameInfo gameInfo = m_items[position];
+            viewInfo.playerName.setText(gameInfo.playerName);
+            viewInfo.score.setText(gameInfo.score);
+
+            viewInfo.connect.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    m_activity.resolveGame(gameInfo);
+                }
+            });
 
             return view;
         }
@@ -491,6 +503,25 @@ public class MainActivity extends Activity
         startActivityForResult(intent, REQUEST_CODE_GAME);
     }
 
+    private void resolveGame(GameInfo gameInfo)
+    {
+        m_lock.lock();
+        try
+        {
+            if (BuildConfig.DEBUG && (m_state != STATE_START_DISCOVERY) && (m_state != STATE_DISCOVERY))
+                throw new AssertionError();
+
+            m_state = STATE_STOP_DISCOVERY_RESOLVE_GAME;
+            m_gameInfo = gameInfo;
+
+            m_nsdManager.stopServiceDiscovery(m_discoveryListener);
+        }
+        finally
+        {
+            m_lock.unlock();
+        }
+    }
+
     private void connectGame(InetSocketAddress serverAddr, String serverDeviceId, String serverPlayerName)
     {
         final Intent intent = new Intent( MainActivity.this, GameClientActivity.class );
@@ -502,10 +533,10 @@ public class MainActivity extends Activity
         startActivityForResult(intent, REQUEST_CODE_GAME);
     }
 
-    public void onCreate( Bundle savedInstanceState )
+    public void onCreate(Bundle savedInstanceState)
     {
-        super.onCreate( savedInstanceState );
-        Log.d( LOG_TAG, "onCreate" );
+        super.onCreate(savedInstanceState);
+        Log.d(LOG_TAG, "onCreate");
 
         /*********************************************************************/
 
@@ -545,28 +576,13 @@ public class MainActivity extends Activity
         listView.setAdapter( m_discoveredGames );
         listView.setLongClickable( true );
         listView.setOnItemLongClickListener( new AdapterView.OnItemLongClickListener() {
-            public boolean onItemLongClick( AdapterView<?> parent, View view, int position, long id )
-            {
-                m_lock.lock();
-                try
-                {
-                    if (BuildConfig.DEBUG && (m_state != STATE_START_DISCOVERY) && (m_state != STATE_DISCOVERY))
-                        throw new AssertionError();
-
-                    m_state = STATE_STOP_DISCOVERY_RESOLVE_GAME;
-                    m_gameInfo = m_discoveredGames.getItem( position );
-
-                    m_nsdManager.stopServiceDiscovery( m_discoveryListener );
-                }
-                finally
-                {
-                    m_lock.unlock();
-                }
+            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                resolveGame(m_discoveredGames.getItem(position));
                 return false;
             }
         } );
 
-        m_buttonStartGame = (Button) findViewById( R.id.buttonStartGame );
+        m_buttonStartGame = (Button) findViewById(R.id.buttonStartGame);
     }
 
     public void onDestroy()
@@ -760,7 +776,7 @@ public class MainActivity extends Activity
         }
     }
 
-    public static NsdServiceInfo createServiceInfo( String deviceID, String playerName, int portNumber )
+    public static NsdServiceInfo createServiceInfo(String deviceID, String playerName, int portNumber)
     {
         final NsdServiceInfo serviceInfo = new NsdServiceInfo();
         final int flags = (Base64.NO_PADDING | Base64.NO_WRAP);

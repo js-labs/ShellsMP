@@ -5,6 +5,7 @@
     <string name="cancel">Cancel</string>
     <string name="cant_connect_to_server">Can\'t connect to the game server</string>
     <string name="check_wifi_status_on_start">Check WiFi status on start</string>
+    <string name="connect">Connect</string>
     <string name="connection_lost">Connection lost</string>
     <string name="close">Close</string>
     <string name="error">Error</string>

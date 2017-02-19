@@ -45,17 +45,17 @@ public class GameActivity extends Activity
 
     protected void playSound_BallPut()
     {
-        m_soundPool.play( m_soundBallSet, 1f, 1f, /*priority*/1, /*loop*/0, /*rate*/1f );
+        m_soundPool.play(m_soundBallSet, 1f, 1f, /*priority*/1, /*loop*/0, /*rate*/1f);
     }
 
     protected void playSound_CapPut()
     {
-        m_soundPool.play( m_soundCapSet, 1f, 1f, /*priority*/1, /*loop*/0, /*rate*/1f );
+        m_soundPool.play(m_soundCapSet, 1f, 1f, /*priority*/1, /*loop*/0, /*rate*/1f);
     }
 
     protected void playSound_Tick()
     {
-        m_soundPool.play( m_soundTick, TICK_VOLUME, TICK_VOLUME, /*priority*/1, /*loop*/0, /*rate*/1f );
+        m_soundPool.play(m_soundTick, TICK_VOLUME, TICK_VOLUME, /*priority*/1, /*loop*/0, /*rate*/1f);
     }
 
     public void onCreate( Bundle savedInstanceState )
@@ -73,20 +73,20 @@ public class GameActivity extends Activity
         //final boolean supportsEs2 = configurationInfo.reqGlEsVersion >= 0x20000;
         Log.d( LOG_TAG, "Supported OpenGL API: " + configurationInfo.reqGlEsVersion );
 
-        m_soundPool = new SoundPool( 3, AudioManager.STREAM_MUSIC, 0 );
-        m_soundBallSet = m_soundPool.load( this, R.raw.ball_set, 1 );
-        m_soundCapSet = m_soundPool.load( this, R.raw.cup_set, 1 );
-        m_soundTick = m_soundPool.load( this, R.raw.tick, 1 );
+        m_soundPool = new SoundPool(3, AudioManager.STREAM_MUSIC, 0);
+        m_soundBallSet = m_soundPool.load(this, R.raw.ball_set, 1);
+        m_soundCapSet = m_soundPool.load(this, R.raw.cup_set, 1);
+        m_soundTick = m_soundPool.load(this, R.raw.tick, 1);
     }
 
     public void onDestroy()
     {
-        Log.d( LOG_TAG, "onDestroy" );
+        Log.d(LOG_TAG, "onDestroy");
         m_soundPool.release();
         super.onDestroy();
     }
 
-    public void showMessageAndFinish( int titleStringID, int messageStringID, final String deviceId )
+    public void showMessageAndFinish(int titleStringID, int messageStringID, final String deviceId)
     {
         final AlertDialog.Builder builder = new AlertDialog.Builder( this );
         builder.setTitle( getString(titleStringID) );
