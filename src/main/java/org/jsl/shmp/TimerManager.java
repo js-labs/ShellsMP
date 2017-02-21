@@ -40,12 +40,12 @@ public class TimerManager
         m_lock = new ReentrantLock();
     }
 
-    public boolean scheduleTimer( TimerQueue timerQueue, TimerQueue.Task timerTask )
+    public boolean scheduleTimer(TimerQueue timerQueue, TimerQueue.Task timerTask)
     {
         m_lock.lock();
         try
         {
-            Log.d( LOG_TAG, "scheduleTimer: schedule=" + m_schedule + " cancel=" + m_cancel );
+            Log.d(LOG_TAG, "scheduleTimer: schedule=" + m_schedule + " cancel=" + m_cancel);
 
             if (BuildConfig.DEBUG)
             {
@@ -65,7 +65,7 @@ public class TimerManager
             m_lock.unlock();
         }
 
-        timerQueue.schedule( timerTask, timerTask.run(), TimeUnit.MILLISECONDS );
+        timerQueue.schedule(timerTask, timerTask.run(), TimeUnit.MILLISECONDS);
 
         m_lock.lock();
         try
@@ -96,7 +96,7 @@ public class TimerManager
         return true;
     }
 
-    public boolean resetTimer( TimerQueue.Task timerTask )
+    public boolean resetTimer(TimerQueue.Task timerTask)
     {
         m_lock.lock();
         try
@@ -134,7 +134,7 @@ public class TimerManager
         }
     }
 
-    public boolean cancelTimer( TimerQueue timerQueue ) throws InterruptedException
+    public boolean cancelTimer(TimerQueue timerQueue) throws InterruptedException
     {
         TimerQueue.Task timerTask;
 
