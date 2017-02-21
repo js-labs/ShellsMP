@@ -495,7 +495,7 @@ public class MainActivity extends Activity
 
     private void startGame()
     {
-        final Intent intent = new Intent( MainActivity.this, GameServerActivity.class );
+        final Intent intent = new Intent(MainActivity.this, GameServerActivity.class);
         intent.putExtra(EXTRA_DEVICE_ID, m_deviceID);
         intent.putExtra(EXTRA_PLAYER_NAME, m_playerName);
         intent.putExtra(EXTRA_GAME_TIME, Prefs.DEFAULT_GAME_TIME);
