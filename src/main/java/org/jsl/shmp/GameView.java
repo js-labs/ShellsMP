@@ -247,35 +247,35 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
         }
     }
 
-    protected void setStatusLine( Bitmap bitmap )
+    protected void setStatusLine(Bitmap bitmap)
     {
-        m_statusLine.setBitmap( bitmap );
+        m_statusLine.setBitmap(bitmap);
         bitmap.recycle();
     }
 
-    protected Bitmap createStatusLine( int ping, String player2Name )
+    protected Bitmap createStatusLine(int ping, String player2Name)
     {
         final Paint paint = m_paint;
         final int width = getWidth();
-        final Bitmap bitmap = Bitmap.createBitmap( width, getTopReservedHeight(), Bitmap.Config.RGB_565 );
-        final Canvas canvas = new Canvas( bitmap );
+        final Bitmap bitmap = Bitmap.createBitmap(width, getTopReservedHeight(), Bitmap.Config.RGB_565);
+        final Canvas canvas = new Canvas(bitmap);
         final float textY = -paint.ascent();
 
-        paint.setColor( Color.GREEN );
-        paint.setStyle( Paint.Style.FILL );
+        paint.setColor(Color.GREEN);
+        paint.setStyle(Paint.Style.FILL);
 
-        paint.setTextAlign( Paint.Align.LEFT );
-        canvas.drawText( m_playerName, 0, textY, paint );
+        paint.setTextAlign(Paint.Align.LEFT);
+        canvas.drawText(m_playerName, 0, textY, paint);
 
         if (ping >= 0)
         {
             final String str = m_strPing + Integer.toString(ping);
-            paint.setTextAlign( Paint.Align.CENTER );
-            canvas.drawText( str, width / 2, textY, paint );
+            paint.setTextAlign(Paint.Align.CENTER);
+            canvas.drawText(str, width / 2, textY, paint);
         }
 
-        paint.setTextAlign( Paint.Align.RIGHT );
-        canvas.drawText( player2Name, width, textY, paint );
+        paint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText(player2Name, width, textY, paint);
 
         return bitmap;
     }
