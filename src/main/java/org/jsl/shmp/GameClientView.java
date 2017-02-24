@@ -292,12 +292,12 @@ public class GameClientView extends GameView
         public float getZ() { return m_z; }
     }
 
-    private void setBottomLineText( int resId, int color, float fontSize )
+    private void setBottomLineText(int resId, int color, float fontSize)
     {
-        setBottomLineText( getContext().getString(resId), color, fontSize );
+        setBottomLineText(getContext().getString(resId), color, fontSize);
     }
 
-    private void setBottomLineText( String str, int color, float fontSize )
+    private void setBottomLineText(String str, int color, float fontSize)
     {
         m_bottomLineString = str;
         m_bottomLineStringFontSize = (getBottomReservedHeight() * fontSize);
@@ -390,15 +390,15 @@ public class GameClientView extends GameView
 
             if (touchCapIdx == m_capWithBall)
             {
-                setBottomLineText( R.string.you_win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
+                setBottomLineText(R.string.you_win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE);
                 found = true;
             }
             else
             {
-                setBottomLineText( R.string.you_lose, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE );
+                setBottomLineText(R.string.you_lose, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE);
 
                 cup = m_cup[m_capWithBall];
-                cup.updateMatrix( cup.getX(), cup.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix );
+                cup.updateMatrix(cup.getX(), cup.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix);
                 found = false;
             }
 
@@ -428,22 +428,22 @@ public class GameClientView extends GameView
     {
         protected void onStop()
         {
-            m_timerManager.resetTimer( this );
+            m_timerManager.resetTimer(this);
         }
 
-        protected void onUpdate( final long value, final float fontSize )
+        protected void onUpdate(final long value, final float fontSize)
         {
             executeOnRenderThread( new RenderThreadRunnable() {
                 public boolean runOnRenderThread(int frameId) {
-                    setBottomLineText( Long.toString(value), GAMBLE_TIMER_COLOR, fontSize );
+                    setBottomLineText(Long.toString(value), GAMBLE_TIMER_COLOR, fontSize);
                     return false;
                 }
             } );
         }
 
-        public GambleTimerImpl( int timeout )
+        public GambleTimerImpl(int timeout)
         {
-            super( m_activity, timeout );
+            super(m_activity, timeout);
         }
     }
 
@@ -549,10 +549,10 @@ public class GameClientView extends GameView
     {
         super.onDrawFrame(vpMatrix, canvas3D);
 
+        final float [] tmp = m_tmpMatrix;
+
         if (m_table != null)
         {
-            final float [] tmp = m_tmpMatrix;
-
             if (m_shadowObject != null)
             {
                 final int frameBufferId = m_shadowObject.frameBufferId;
@@ -590,7 +590,9 @@ public class GameClientView extends GameView
                     1f,
                     m_bottomLineStringFontSize,
                     m_bottomLineStringColor,
-                    Paint.Align.CENTER );
+                    Canvas3D.Align.CENTER,
+                    Canvas3D.VerticalAlign.CENTER,
+                    tmp, 0);
         }
     }
 
@@ -652,7 +654,7 @@ public class GameClientView extends GameView
                 m_table.setSize( m_tableWidth, m_tableHeight );
                 m_tableMatrix = new float[48];
                 updateTableViewMatrixRT( angleXd, angleZd );
-                setStatusLine( statusLine );
+                setStatusLine(statusLine);
                 return false;
             }
         } );
@@ -662,18 +664,39 @@ public class GameClientView extends GameView
     {
         if (!m_pause)
         {
-            /* Server disconnected, client won. */
+            /* Server disconnected, client win. */
+
+            boolean interrupted = false;
+            try
+            {
+                m_timerManager.cancelTimer(getTimerQueue());
+            }
+            catch (final InterruptedException ex)
+            {
+                Log.w( LOG_TAG, "Exception", ex );
+                interrupted = true;
+            }
+
             for (;;)
             {
-                final int state = s_stateUpdater.get( this );
+                final int state = s_stateUpdater.get(this);
                 if (state == STATE_FINISHED)
                     break;
                 if (s_stateUpdater.compareAndSet(this, state, STATE_FINISHED))
                 {
-                    m_activity.showMessage( R.string.info, R.string.other_player_quit_before_game_end );
+                    executeOnRenderThread( new RenderThreadRunnable() {
+                        public boolean runOnRenderThread(int frameId) {
+                            setBottomLineText(R.string.thimblerigger_left_game, Color.GREEN, 0.5f);
+                            return false;
+                        }
+                    } );
+                    //m_activity.showMessage(R.string.info, R.string.other_player_quit_before_game_end);
                     break;
                 }
             }
+
+            if (interrupted)
+                Thread.currentThread().interrupt();
         }
     }
 
@@ -681,19 +704,19 @@ public class GameClientView extends GameView
     {
         /* Status line before connect */
         final int width = getWidth();
-        final Bitmap bitmap = Bitmap.createBitmap( width, getTopReservedHeight(), Bitmap.Config.RGB_565 );
-        final Canvas canvas = new Canvas( bitmap );
+        final Bitmap bitmap = Bitmap.createBitmap(width, getTopReservedHeight(), Bitmap.Config.RGB_565);
+        final Canvas canvas = new Canvas(bitmap);
         final Paint paint = getPaint();
         final float textY = -paint.ascent();
 
-        paint.setColor( Color.WHITE );
-        paint.setTextAlign( Paint.Align.CENTER );
-        canvas.drawText( m_serverAddr.toString(), 0, textY, paint );
+        paint.setColor(Color.WHITE);
+        paint.setTextAlign(Paint.Align.CENTER);
+        canvas.drawText(m_serverAddr.toString(), 0, textY, paint);
 
         return bitmap;
     }
 
-    private void updateAngles( float dx, float dy )
+    private void updateAngles(float dx, float dy)
     {
         float angleX = (float) -(Math.asin(dy / m_viewDistance) * ANGLE_ADJUST);
         float angleZ = (float) -(Math.asin(dx / m_viewDistance) * ANGLE_ADJUST);
@@ -716,7 +739,7 @@ public class GameClientView extends GameView
             final float angleZd = (float) (angleZ / Math.PI * 180f);
             executeOnRenderThread( new RenderThreadRunnable() {
                 public boolean runOnRenderThread(int frameId) {
-                    updateTableViewMatrixRT( angleXd, angleZd );
+                    updateTableViewMatrixRT(angleXd, angleZd);
                     return false;
                 }
             } );
@@ -726,23 +749,23 @@ public class GameClientView extends GameView
         }
     }
 
-    public boolean onTouchEvent( MotionEvent event )
+    public boolean onTouchEvent(MotionEvent event)
     {
         if (event.getAction() == MotionEvent.ACTION_DOWN)
         {
-            final float x = event.getX();
-            final float y = event.getY();
+            final float eventX = event.getX();
+            final float eventY = event.getY();
 
             for (;;)
             {
-                final int state = s_stateUpdater.get( this );
+                final int state = s_stateUpdater.get(this);
                 if (state == STATE_GUESS)
                 {
                     if (s_stateUpdater.compareAndSet(this, state, STATE_CHECK))
                     {
                         executeOnRenderThread( new RenderThreadRunnable() {
                             public boolean runOnRenderThread(int frameId) {
-                                onTouchEventRT( x, y, frameId );
+                                onTouchEventRT(eventX, eventY, frameId);
                                 return false;
                             }
                         } );
@@ -756,35 +779,35 @@ public class GameClientView extends GameView
             if (m_touchState == 0)
             {
                 m_touchState = TOUCH_STATE_TOUCH;
-                m_eventX = event.getX();
-                m_eventY = event.getY();
+                m_eventX = eventX;
+                m_eventY = eventY;
             }
         }
         else if (event.getAction() == MotionEvent.ACTION_MOVE)
         {
             if (m_touchState == TOUCH_STATE_TOUCH)
             {
-                final float x = event.getX();
-                final float y = event.getY();
-                final float dx = (x - m_eventX);
-                final float dy = (y - m_eventY);
+                final float eventX = event.getX();
+                final float eventY = event.getY();
+                final float dx = (eventX - m_eventX);
+                final float dy = (eventY - m_eventY);
                 final int touchSlop = getTouchSlop();
                 if (Math.sqrt(dx*dx + dy*dy) >= touchSlop)
                 {
-                    updateAngles( dx, dy );
-                    m_eventX = x;
-                    m_eventY = y;
+                    updateAngles(dx, dy);
+                    m_eventX = eventX;
+                    m_eventY = eventY;
                 }
             }
             else if (m_touchState == TOUCH_STATE_DRAG)
             {
-                final float x = event.getX();
-                final float y = event.getY();
-                final float dx = (x - m_eventX);
-                final float dy = (y - m_eventY);
-                updateAngles( dx, dy );
-                m_eventX = x;
-                m_eventY = y;
+                final float eventX = event.getX();
+                final float eventY = event.getY();
+                final float dx = (eventX - m_eventX);
+                final float dy = (eventY - m_eventY);
+                updateAngles(dx, dy);
+                m_eventX = eventX;
+                m_eventY = eventY;
             }
         }
         else if ((event.getAction() == MotionEvent.ACTION_UP) ||
@@ -795,12 +818,12 @@ public class GameClientView extends GameView
         return true;
     }
 
-    public void setPing( int ping )
+    public void setPing(int ping)
     {
         final Bitmap statusLine = createStatusLine( ping, m_serverPlayerName );
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                setStatusLine( statusLine );
+                setStatusLine(statusLine);
                 return false;
             }
         } );
@@ -838,7 +861,7 @@ public class GameClientView extends GameView
         } );
     }
 
-    public void setCapPositionCT( int id, float virtualX, float virtualY, float virtualZ )
+    public void setCupPositionCT(int id, float virtualX, float virtualY, float virtualZ)
     {
         /* cap position is relative to the center of the table,
          * side should be changed as well as for ball.
@@ -846,21 +869,21 @@ public class GameClientView extends GameView
         final float x = -(virtualX * m_scale);
         final float y = -(virtualY * m_scale);
         final float z = (virtualZ * m_scale);
-        final int cid = id;
+        final int cupId = id;
         executeOnRenderThread( new RenderThreadRunnable() {
             public boolean runOnRenderThread(int frameId) {
-                return m_cup[cid].updateMatrix( x, y, z, m_ballRadius, frameId, m_tmpMatrix );
+                return m_cup[cupId].updateMatrix(x, y, z, m_ballRadius, frameId, m_tmpMatrix);
             }
         } );
     }
 
-    public void putCapCT( int id, float virtualX, float virtualY, int gambleTime )
+    public void putCupCT(int id, float virtualX, float virtualY, int gambleTime)
     {
-        setCapPositionCT( id, virtualX, virtualY, 0f );
+        setCupPositionCT(id, virtualX, virtualY, 0f);
         m_activity.playSound_CapPut();
 
         if (gambleTime > 0)
-            m_timerManager.scheduleTimer( getTimerQueue(), new GambleTimerImpl(gambleTime) );
+            m_timerManager.scheduleTimer(getTimerQueue(), new GambleTimerImpl(gambleTime));
     }
 
     public void removeCapCT( int id )
@@ -881,7 +904,7 @@ public class GameClientView extends GameView
         boolean interrupted = false;
         try
         {
-            m_timerManager.cancelTimer( getTimerQueue() );
+            m_timerManager.cancelTimer(getTimerQueue());
         }
         catch (final InterruptedException ex)
         {
@@ -899,7 +922,7 @@ public class GameClientView extends GameView
                         if (s_stateUpdater.compareAndSet(GameClientView.this, state, STATE_GUESS))
                         {
                             m_capWithBall = capWithBall;
-                            setBottomLineText( R.string.guess, Color.LTGRAY, 0.5f );
+                            setBottomLineText(R.string.guess, Color.LTGRAY, 0.5f);
                             break;
                         }
                     }
@@ -955,9 +978,9 @@ public class GameClientView extends GameView
             return null;
 
         final Intent result = new Intent();
-        result.putExtra( MainActivity.EXTRA_TITLE_ID, R.string.info );
-        result.putExtra( MainActivity.EXTRA_MESSAGE_ID, R.string.quit_game_before_end );
-        result.putExtra( MainActivity.EXTRA_DEVICE_ID, m_serverDeviceId );
+        result.putExtra(MainActivity.EXTRA_TITLE_ID, R.string.info);
+        result.putExtra(MainActivity.EXTRA_MESSAGE_ID, R.string.quit_game_before_end);
+        result.putExtra(MainActivity.EXTRA_DEVICE_ID, m_serverDeviceId);
 
         return result;
     }

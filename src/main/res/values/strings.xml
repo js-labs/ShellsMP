@@ -26,6 +26,7 @@
     <string name="start_game">Start game</string>
     <string name="system_error">System error</string>
     <string name="turn_wifi_on">Turn WiFi on</string>
+    <string name="thimblerigger_left_game">Thimblerigger left game, you win!</string>
     <string name="waiting_players">Waiting players</string>
     <string name="waiting_second_player">Waiting second player...</string>
     <string name="waiting">waiting...</string>

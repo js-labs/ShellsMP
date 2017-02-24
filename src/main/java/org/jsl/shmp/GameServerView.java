@@ -668,10 +668,10 @@ public class GameServerView extends GameView
     {
         super.onDrawFrame(vpMatrix, canvas3D);
 
+        final float [] tmp = m_tmpMatrix;
+
         if (m_tableWidth > 0)
         {
-            final float [] tmp = m_tmpMatrix;
-
             if (m_shadowObject != null)
             {
                 final int frameBufferId = m_shadowObject.frameBufferId;
@@ -728,7 +728,9 @@ public class GameServerView extends GameView
                     1f,
                     m_bottomLineTextFontSize,
                     m_bottomLineTextColor,
-                    Paint.Align.CENTER );
+                    Canvas3D.Align.CENTER,
+                    Canvas3D.VerticalAlign.CENTER,
+                    tmp, 0);
         }
 
         /*

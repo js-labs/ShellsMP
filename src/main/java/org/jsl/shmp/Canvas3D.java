@@ -33,6 +33,27 @@ import java.util.Set;
 public class Canvas3D
 {
     public static final float [] s_identityMatrix = createIdentityMatrix();
+
+    public enum Align
+    {
+        LEFT  (0), // The text is drawn to the left of the x,y origin
+        CENTER(1), // The text is centered vertically on the x,y origin
+        RIGHT (2); // the text is drawn to the left of the x,y origin
+
+        final int value;
+        Align(int value) { this.value = value; }
+    }
+
+    public enum VerticalAlign
+    {
+        UP    (0), // The text is drawn to the down of the x,y origin
+        CENTER(1), // The text is centered vertically on the x,y origin
+        DOWN  (2); // the text is drawn to the up of the x,y origin
+
+        final int value;
+        VerticalAlign(int value) { this.value = value; }
+    }
+
     private static final float [] s_matrix = new float[32];
 
     private static float [] createIdentityMatrix()
@@ -337,12 +358,12 @@ public class Canvas3D
     {
         private static final int TT_ROWS = 10;
         private static final int TT_COLUMNS = 10;
-        private static final int TT_SPACING = 2;
+        private static final float TT_SPACING = 0.2f;
         private static final char TT_START_CHAR = ' ';
 
-        private final float m_adjust;
         private final int m_textureHeight;
         private final int m_textureWidth;
+        private final float m_spacing;
         private final float [] m_glyphMap;
 
         private final int m_programId;
@@ -362,7 +383,7 @@ public class Canvas3D
             paint.setTextSize(textSize);
             paint.setTextAlign(Paint.Align.LEFT);
 
-            final int fontSpacing = (int) (paint.getFontSpacing() + 0.5);
+            final float fontSpacing = paint.getFontSpacing();
             final int [] glyphWidth = new int[128];
             int textureWidth = 0;
             final char [] ch = new char[1];
@@ -372,7 +393,7 @@ public class Canvas3D
                 int rowWidth = 0;
                 for (int col=0; col<TT_COLUMNS; col++)
                 {
-                    final int gw = (int) (paint.measureText(ch, 0, 1) + TT_SPACING + 0.5);
+                    final int gw = (int) (paint.measureText(ch, 0, 1) + 0.5);
                     glyphWidth[ch[0]] = gw;
                     rowWidth += gw;
                     if (++ch[0] == 128)
@@ -383,14 +404,17 @@ public class Canvas3D
                 if (ch[0] == 128)
                     break;
             }
+            final int spacing = (int) (((float)textureWidth)/TT_COLUMNS*TT_SPACING + 0.5);
+            textureWidth += (spacing * TT_COLUMNS);
 
-            m_adjust = ((float)fontSpacing / textSize);
-            m_textureHeight = fontSpacing * TT_ROWS;
+            final int rowHeight = (int) (fontSpacing + 0.5);
+            m_textureHeight = (rowHeight * TT_ROWS);
             m_textureWidth = textureWidth;
-            m_glyphMap = new float[(TT_COLUMNS+1)*TT_ROWS];
+            m_spacing = (((float)spacing) / textureWidth);
+            m_glyphMap = new float[(TT_COLUMNS+1) * TT_ROWS];
 
-            final Bitmap bitmap = Bitmap.createBitmap( textureWidth, fontSpacing*TT_ROWS, Bitmap.Config.ARGB_8888 );
-            final Canvas canvas = new Canvas( bitmap );
+            final Bitmap bitmap = Bitmap.createBitmap(m_textureWidth, m_textureHeight, Bitmap.Config.ARGB_8888);
+            final Canvas canvas = new Canvas(bitmap);
             int idx = 0;
             ch[0] = TT_START_CHAR;
             float y = -paint.ascent();
@@ -400,13 +424,13 @@ public class Canvas3D
                 m_glyphMap[idx++] = 0f;
                 for (int col=0; col<TT_ROWS; col++)
                 {
-                    canvas.drawText( ch, 0, 1, x, y, paint );
-                    x += glyphWidth[ch[0]];
+                    canvas.drawText(ch, 0, 1, x, y, paint);
+                    x += (glyphWidth[ch[0]] + spacing);
                     m_glyphMap[idx++] = (x / textureWidth);
                     if (++ch[0] == 128)
                         break loop;
                 }
-                y += fontSpacing;
+                y += rowHeight;
             }
 
             /* Initialize shader program */
@@ -446,21 +470,59 @@ public class Canvas3D
                 throw new IOException( "glGenTextures() failed" );
             m_textureId = textureId[0];
 
-            GLES20.glActiveTexture( GLES20.GL_TEXTURE0 );
-            GLES20.glBindTexture( GLES20.GL_TEXTURE_2D, m_textureId );
-            GLES20.glTexParameteri( GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR );
-            GLES20.glTexParameteri( GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR );
-            GLUtils.texImage2D( GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, bitmap, 0 );
-            GLES20.glBindTexture( GLES20.GL_TEXTURE_2D, 0 );
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, m_textureId);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, bitmap, 0);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
 
             bitmap.recycle();
         }
 
-        public void draw( float [] vpMatrix, String str, float x, float y, float z, float textSize, int color, Paint.Align align )
+        private static class LineInfo
+        {
+            public final int start;
+            public final int end;
+            public final float width;
+
+            public LineInfo(int start, int end, float width)
+            {
+                this.start = start;
+                this.end = end;
+                this.width = width;
+            }
+        }
+
+        public void draw(float [] matrix, String str, float x, float y, float z, float textSize,
+                int color, Align align, VerticalAlign valign, float [] tmp, int tmpOffset)
         {
             final int STRIDE = (2 + 2) * (Float.SIZE / Byte.SIZE);
             final int strLength = str.length();
-            final int capacity = Math.max(strLength, 16) * (2 * 3 * (2 + 2));
+
+            int idx = 0;
+            int lines = 0;
+            int lineMaxLength = 0;
+            int lineStartIdx = 0;
+
+            for (;;)
+            {
+                if ((idx == strLength) || (str.charAt(idx) == '\n'))
+                {
+                    lines++;
+                    final int lineLength = (idx - lineStartIdx);
+                    if (lineLength > lineMaxLength)
+                        lineMaxLength = lineLength;
+
+                    if (idx == strLength)
+                        break;
+
+                    lineStartIdx = (idx + 1);
+                }
+                idx++;
+            }
+
+            final int capacity = Math.max(lineMaxLength, 16) * (2 * 3 * (2 + 2));
             if ((m_fb == null) || (m_fb.capacity() < capacity))
             {
                 final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(Float.SIZE/Byte.SIZE * capacity);
@@ -468,136 +530,181 @@ public class Canvas3D
                 m_fb = byteBuffer.asFloatBuffer();
             }
 
-            final float height = (textSize * m_adjust);
-            final float scale = height / (((float) m_textureHeight) / TT_ROWS) * m_textureWidth;
-            float width = 0;
-            for (int idx=0; idx<strLength; idx++)
-            {
-                int ch = str.charAt( idx );
-                if ((ch < TT_START_CHAR) || (ch > 128))
-                    ch = '#';
-                ch -= TT_START_CHAR;
-                final int row = (ch / TT_COLUMNS);
-                final int col = (ch % TT_COLUMNS);
-                final int c = (row * (TT_COLUMNS+1)) + col;
-                width += (m_glyphMap[c+1] - m_glyphMap[c]);
-            }
-            width *= scale;
+            int startIdx = 0;
+            final float scale = textSize / (((float)m_textureHeight) / TT_ROWS);
+            float lineMaxWidth = 0f;
+            final LineInfo [] lineInfo = new LineInfo[lines];
+            int lineIdx = 0;
+            idx = 0;
 
-            float x1;
-            if (align == Paint.Align.CENTER)
-                x1 = -(width / 2.0f);
-            else if (align == Paint.Align.LEFT)
+            for (float lineWidth=0;;)
             {
-                /* text is drawn to the right of the (x,y) origin */
-                x1 = 0f;
+                int ch;
+                if ((idx == strLength) || ((ch = str.charAt(idx)) == '\n'))
+                {
+                    lineWidth *= (m_textureWidth * scale);
+                    lineInfo[lineIdx++] = new LineInfo(startIdx, idx, lineWidth);
+
+                    if (lineWidth > lineMaxWidth)
+                        lineMaxWidth = lineWidth;
+
+                    if (idx == strLength)
+                        break;
+
+                    idx++;
+                    startIdx = idx;
+                    lineWidth = 0f;
+                }
+                else
+                {
+                    if ((ch < TT_START_CHAR) || (ch > 128))
+                        ch = '#';
+                    ch -= TT_START_CHAR;
+                    final int row = (ch / TT_COLUMNS);
+                    final int col = (ch % TT_COLUMNS);
+                    final int c = (row * (TT_COLUMNS + 1)) + col;
+                    lineWidth += (m_glyphMap[c + 1] - m_glyphMap[c] - m_spacing);
+                    idx++;
+                }
             }
-            else if (align == Paint.Align.RIGHT)
+
+            if (align == Align.LEFT)
+                x += (lineMaxWidth / 2f);
+            else if (align == Align.RIGHT)
+                x -= (lineMaxWidth / 2f);
+            else if (align != Align.CENTER)
             {
-                /* text is drawn to the left of the (x,y) origin */
-                x1 = -width;
-            }
-            else
+                if (BuildConfig.DEBUG)
+                    throw new AssertionError();
                 return;
-
-            final float y1 = (height / 2f);
-            final float y2 = -y1;
-
-            m_fb.position(0);
-            for (int idx=0; idx<strLength; idx++)
-            {
-                int ch = str.charAt( idx );
-                if ((ch < TT_START_CHAR) || (ch >= 128))
-                    ch = '#';
-                ch -= TT_START_CHAR;
-
-                final int row = (ch / TT_COLUMNS);
-                final int col = (ch % TT_COLUMNS);
-                final int c = (row * (TT_COLUMNS+1)) + col;
-
-                final float tx1 = m_glyphMap[c];
-                final float tx2 = m_glyphMap[c+1] - ((float) TT_SPACING / m_textureWidth);
-                final float ty1 = (1f / TT_ROWS * row);
-                final float ty2 = (1f / TT_ROWS * (row+1));
-                final float x2 = x1 + (m_glyphMap[c+1] - tx1)*scale;
-
-                /* first triangle */
-                m_fb.put(x1); m_fb.put(y2);
-                m_fb.put(tx1); m_fb.put(ty2);
-
-                m_fb.put(x1); m_fb.put(y1);
-                m_fb.put(tx1); m_fb.put(ty1);
-
-                m_fb.put(x2); m_fb.put(y2);
-                m_fb.put(tx2); m_fb.put(ty2);
-
-                /* second triangle */
-                m_fb.put(x1); m_fb.put(y1);
-                m_fb.put(tx1); m_fb.put(ty1);
-
-                m_fb.put(x2); m_fb.put(y1);
-                m_fb.put(tx2); m_fb.put(ty1);
-
-                m_fb.put(x2); m_fb.put(y2);
-                m_fb.put(tx2); m_fb.put(ty2);
-
-                x1 = x2;
             }
 
-            Matrix.setIdentityM( s_matrix, 16 );
-            Matrix.translateM( s_matrix, 16, x, y, z );
-            Matrix.multiplyMM( s_matrix, 0, vpMatrix, 0, s_matrix, 16 );
+            float y2 = (textSize * lines) / 2;
 
-            GLES20.glUseProgram( m_programId );
-            GLES20.glBlendFunc( GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA );
-            GLES20.glEnable( GLES20.GL_BLEND );
+            if (valign == VerticalAlign.UP)
+                y -= y2;
+            else if (valign == VerticalAlign.DOWN)
+                y += y2;
+            else if (valign != VerticalAlign.CENTER)
+            {
+                if (BuildConfig.DEBUG)
+                    throw new AssertionError();
+                return;
+            }
 
-            GLES20.glUniformMatrix4fv( m_matrixLocation, 1, false, s_matrix, 0 );
+            Matrix.setIdentityM(tmp, tmpOffset+16);
+            Matrix.translateM(tmp, tmpOffset+16, x, y, z);
+            Matrix.multiplyMM(tmp, tmpOffset, matrix, 0, tmp, tmpOffset+16);
 
-            m_fb.position(0);
-            GLES20.glVertexAttribPointer( m_positionLocation, 2, GLES20.GL_FLOAT, false, STRIDE, m_fb );
-            GLES20.glEnableVertexAttribArray( m_positionLocation );
+            for (LineInfo ll : lineInfo)
+            {
+                float x1;
+                if (align == Align.LEFT)
+                    x1 = (-lineMaxWidth / 2f);
+                else if (align == Align.CENTER)
+                    x1 = (-ll.width / 2f);
+                else if (align == Align.RIGHT)
+                    x1 = (lineMaxWidth / 2f - ll.width);
+                else
+                    return;
 
-            m_fb.position(2);
-            GLES20.glVertexAttribPointer( m_texCoordLocation, 2, GLES20.GL_FLOAT, false, STRIDE, m_fb );
-            GLES20.glEnableVertexAttribArray( m_texCoordLocation );
+                final float y1 = y2;
+                y2 -= textSize;
 
-            GLES20.glActiveTexture( GLES20.GL_TEXTURE0 );
-            GLES20.glBindTexture( GLES20.GL_TEXTURE_2D, m_textureId );
-            GLES20.glUniform1i( m_texUnitLocation, 0 );
+                m_fb.position(0);
+                for (idx=ll.start; idx<ll.end; idx++)
+                {
+                    int ch = str.charAt(idx);
+                    if ((ch < TT_START_CHAR) || (ch >= 128))
+                        ch = '#';
+                    ch -= TT_START_CHAR;
 
-            GLES20.glUniform4f( m_colorLocation,
-                    ((float)Color.red(color)) / 255f,
-                    ((float)Color.green(color)) / 255f,
-                    ((float)Color.blue(color)) / 255f,
-                    1.0f );
+                    final int row = (ch / TT_COLUMNS);
+                    final int col = (ch % TT_COLUMNS);
+                    final int c = (row * (TT_COLUMNS+1)) + col;
 
-            GLES20.glDrawArrays( GLES20.GL_TRIANGLES, 0, 3*2*strLength );
+                    final float tx1 = m_glyphMap[c];
+                    final float tx2 = (m_glyphMap[c+1] - m_spacing);
+                    final float ty1 = (((float)row) / TT_ROWS);
+                    final float ty2 = (ty1 + 1f/TT_ROWS);
+                    final float x2 = x1 + (m_glyphMap[c+1] - tx1 - m_spacing) * m_textureWidth * scale;
 
-            GLES20.glDisable( GLES20.GL_BLEND );
-            GLES20.glUseProgram( 0 );
+                    /* first triangle */
+                    m_fb.put(x1); m_fb.put(y2);
+                    m_fb.put(tx1); m_fb.put(ty2);
+
+                    m_fb.put(x1); m_fb.put(y1);
+                    m_fb.put(tx1); m_fb.put(ty1);
+
+                    m_fb.put(x2); m_fb.put(y2);
+                    m_fb.put(tx2); m_fb.put(ty2);
+
+                    /* second triangle */
+                    m_fb.put(x1); m_fb.put(y1);
+                    m_fb.put(tx1); m_fb.put(ty1);
+
+                    m_fb.put(x2); m_fb.put(y1);
+                    m_fb.put(tx2); m_fb.put(ty1);
+
+                    m_fb.put(x2); m_fb.put(y2);
+                    m_fb.put(tx2); m_fb.put(ty2);
+
+                    x1 = x2;
+                }
+
+                GLES20.glUseProgram(m_programId);
+                GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+                GLES20.glEnable(GLES20.GL_BLEND);
+
+                GLES20.glUniformMatrix4fv(m_matrixLocation, 1, false, tmp, tmpOffset);
+
+                m_fb.position(0);
+                GLES20.glVertexAttribPointer(m_positionLocation, 2, GLES20.GL_FLOAT, false, STRIDE, m_fb);
+                GLES20.glEnableVertexAttribArray(m_positionLocation);
+
+                m_fb.position(2);
+                GLES20.glVertexAttribPointer(m_texCoordLocation, 2, GLES20.GL_FLOAT, false, STRIDE, m_fb);
+                GLES20.glEnableVertexAttribArray(m_texCoordLocation);
+
+                GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, m_textureId);
+                GLES20.glUniform1i(m_texUnitLocation, 0);
+
+                GLES20.glUniform4f(m_colorLocation,
+                        ((float)Color.red(color)) / 255f,
+                        ((float)Color.green(color)) / 255f,
+                        ((float)Color.blue(color)) / 255f,
+                        1f);
+
+                final int lineLength = (ll.end - ll.start);
+                GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 3*2*lineLength);
+            }
+
+            GLES20.glDisable(GLES20.GL_BLEND);
+            GLES20.glUseProgram(0);
         }
     }
 
     public Canvas3D(Context context, int textSize) throws IOException
     {
-        m_spriteDrawer = new SpriteDrawer( context );
-        m_linesDrawer = new LinesDrawer( context );
-        m_textDrawer = new TextDrawer( context, textSize );
+        m_spriteDrawer = new SpriteDrawer(context);
+        m_linesDrawer = new LinesDrawer(context);
+        m_textDrawer = new TextDrawer(context, textSize);
     }
 
-    public void draw( float [] vpMatrix, Sprite sprite )
+    public void draw(float [] vpMatrix, Sprite sprite)
     {
-        m_spriteDrawer.draw( vpMatrix, sprite );
+        m_spriteDrawer.draw(vpMatrix, sprite);
     }
 
-    public void drawLines( float [] vpMatrix, int size, int count, FloatBuffer vertexData, int color )
+    public void drawLines(float [] vpMatrix, int size, int count, FloatBuffer vertexData, int color)
     {
         m_linesDrawer.draw( vpMatrix, size, count, vertexData, color );
     }
 
-    public void drawText( float [] vpMatrix, String str, float x, float y, float z, float textSize, int color, Paint.Align align )
+    public void drawText(float [] matrix, String str, float x, float y, float z,
+            float textSize, int color, Align align, VerticalAlign valign, float [] tmp, int tmpOffset)
     {
-        m_textDrawer.draw( vpMatrix, str, x, y, z, textSize, color, align );
+        m_textDrawer.draw(matrix, str, x, y, z, textSize, color, align, valign, tmp, tmpOffset);
     }
 }
