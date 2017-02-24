@@ -351,7 +351,7 @@ public class GameClientView extends GameView
     private void onTouchEventRT(float touchX, float touchY, int frameId)
     {
         /* executed on render thread */
-        int touchCapIdx = -1;
+        int touchCupIdx = -1;
         float distance = 0;
 
         for (int idx = 0; idx < m_cup.length; idx++)
@@ -370,25 +370,25 @@ public class GameClientView extends GameView
                 if (Math.sqrt( dx * dx + dy * dy ) <= m_ballRadius)
                 {
                     final float d = m_viewDistance - (m_eyePosition.getX()*cup.getX() + m_eyePosition.getY()*cup.getY() + m_eyePosition.getZ()*cup.getZ()) / m_viewDistance;
-                    if ((touchCapIdx < 0) || (d < distance))
+                    if ((touchCupIdx < 0) || (d < distance))
                     {
-                        touchCapIdx = idx;
+                        touchCupIdx = idx;
                         distance = d;
                     }
                 }
             }
         }
 
-        if (touchCapIdx >= 0)
+        if (touchCupIdx >= 0)
         {
             s_stateUpdater.set( this, STATE_FINISHED );
 
-            Cup cup = m_cup[touchCapIdx];
+            Cup cup = m_cup[touchCupIdx];
             cup.updateMatrix( cup.getX(), cup.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix );
 
             boolean found;
 
-            if (touchCapIdx == m_capWithBall)
+            if (touchCupIdx == m_cupWithBall)
             {
                 setBottomLineText(R.string.you_win, WIN_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE);
                 found = true;
@@ -397,7 +397,7 @@ public class GameClientView extends GameView
             {
                 setBottomLineText(R.string.you_lose, LOSE_TEXT_COLOR, GAMBLE_TIMER_FONT_SIZE);
 
-                cup = m_cup[m_capWithBall];
+                cup = m_cup[m_cupWithBall];
                 cup.updateMatrix(cup.getX(), cup.getY(), m_ballRadius*4, m_ballRadius, frameId, m_tmpMatrix);
                 found = false;
             }
@@ -466,12 +466,12 @@ public class GameClientView extends GameView
     private float [] m_tableMatrix;
     private Ball m_ball;
     private float m_ballRadius;
-    private Cup[] m_cup;
+    private Cup [] m_cup;
 
     private final TimerManager m_timerManager;
 
     private volatile int m_state;
-    private int m_capWithBall;
+    private int m_cupWithBall;
 
     private float m_bottomLineX;
     private float m_bottomLineY;
@@ -645,7 +645,7 @@ public class GameClientView extends GameView
                     m_cup = new Cup[3];
                     for (int idx = 0; idx< m_cup.length; idx++)
                         m_cup[idx] = new Cup(modelCup);
-                    m_capWithBall = -1;
+                    m_cupWithBall = -1;
                 }
                 catch (final IOException ex)
                 {
@@ -665,7 +665,6 @@ public class GameClientView extends GameView
         if (!m_pause)
         {
             /* Server disconnected, client win. */
-
             boolean interrupted = false;
             try
             {
@@ -686,11 +685,10 @@ public class GameClientView extends GameView
                 {
                     executeOnRenderThread( new RenderThreadRunnable() {
                         public boolean runOnRenderThread(int frameId) {
-                            setBottomLineText(R.string.thimblerigger_left_game, Color.GREEN, 0.5f);
+                            setBottomLineText(R.string.thimblerigger_left_game, Color.GREEN, 0.4f);
                             return false;
                         }
                     } );
-                    //m_activity.showMessage(R.string.info, R.string.other_player_quit_before_game_end);
                     break;
                 }
             }
@@ -921,7 +919,7 @@ public class GameClientView extends GameView
                     {
                         if (s_stateUpdater.compareAndSet(GameClientView.this, state, STATE_GUESS))
                         {
-                            m_capWithBall = capWithBall;
+                            m_cupWithBall = capWithBall;
                             setBottomLineText(R.string.guess, Color.LTGRAY, 0.5f);
                             break;
                         }
