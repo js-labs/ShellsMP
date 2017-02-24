@@ -279,13 +279,13 @@ public class GameServerView extends GameView
                          * then change state then send message to the client,
                          * to be sure m_state will be changed before we will receive reply.
                          */
-                        setBottomLineText( R.string.waiting, GAMBLE_TIMER_COLOR, 0.5f );
+                        setBottomLineText(R.string.waiting, GAMBLE_TIMER_COLOR, 0.5f);
 
                         post( new Runnable() {
                             public void run() {
                                 m_state = STATE_WAIT_REPLY;
-                                final RetainableByteBuffer msg = Protocol.Guess.create( m_byteBufferPool, (short) m_capWithBall );
-                                m_session.sendMessage( msg );
+                                final RetainableByteBuffer msg = Protocol.Guess.create(m_byteBufferPool, (short) m_cupWithBall);
+                                m_session.sendMessage(msg);
                                 msg.release();
                             }
                         } );
@@ -296,17 +296,17 @@ public class GameServerView extends GameView
             }
         }
 
-        protected void onUpdate( final long value, final float fontSize )
+        protected void onUpdate(final long value, final float fontSize)
         {
             executeOnRenderThread( new RenderThreadRunnable() {
                 public boolean runOnRenderThread(int frameId) {
-                    setBottomLineText( Long.toString(value), GAMBLE_TIMER_COLOR, fontSize );
+                    setBottomLineText(Long.toString(value), GAMBLE_TIMER_COLOR, fontSize);
                     return false;
                 }
             } );
         }
 
-        public GambleTimerImpl( int timeout )
+        public GambleTimerImpl(int timeout)
         {
             super( m_activity, timeout );
         }
@@ -353,8 +353,8 @@ public class GameServerView extends GameView
     private Ball m_ball;
     private float m_ballX;
     private float m_ballY;
-    private int m_capIdx;
-    private int m_capWithBall;
+    private int m_cupIdx;
+    private int m_cupWithBall;
 
     private int m_state;
     private float m_eventX;
@@ -871,7 +871,7 @@ public class GameServerView extends GameView
             {
                 final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
                 final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
-                if (m_cup[m_capIdx].contains(eventX, eventY, m_ballRadius))
+                if (m_cup[m_cupIdx].contains(eventX, eventY, m_ballRadius))
                 {
                     m_eventX = eventX;
                     m_eventY = eventY;
@@ -984,7 +984,7 @@ public class GameServerView extends GameView
             }
             else if (m_state == STATE_CAP_DRAG)
             {
-                final int capIdx = m_capIdx;
+                final int capIdx = m_cupIdx;
                 final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
                 final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
                 final float dx = (eventX - m_eventX);
@@ -1141,7 +1141,7 @@ public class GameServerView extends GameView
                 {
                     /* Ball in the valid range, proceed with caps. */
                     final int capIdx = 0;
-                    m_capIdx = capIdx;
+                    m_cupIdx = capIdx;
 
                     executeOnRenderThread( new RenderThreadRunnable() {
                         public boolean runOnRenderThread(int frameId) {
@@ -1192,7 +1192,7 @@ public class GameServerView extends GameView
             }
             else if (m_state == STATE_CAP_DRAG)
             {
-                final int capIdx = m_capIdx;
+                final int capIdx = m_cupIdx;
                 final float cx = m_cup[capIdx].getX();
                 final float cy = m_cup[capIdx].getY();
 
@@ -1205,10 +1205,10 @@ public class GameServerView extends GameView
                         final float ballX = m_ballX;
                         final float ballY = m_ballY;
                         m_ball.setVisible(false);
-                        m_capWithBall = m_capIdx;
+                        m_cupWithBall = m_cupIdx;
 
                         short gambleTime;
-                        final int capIdxx = ++m_capIdx;
+                        final int capIdxx = ++m_cupIdx;
                         if (capIdxx == m_cup.length)
                         {
                             /* Last cap */
@@ -1278,15 +1278,15 @@ public class GameServerView extends GameView
                     {
                         /* Check that new cap does not intersect with all previously set */
                         int idx = 0;
-                        for (; idx<m_capIdx; idx++)
+                        for (; idx<m_cupIdx; idx++)
                         {
                             if (m_cup[idx].contains(cx, cy, m_ballRadius*2))
                                 break;
                         }
 
-                        if (idx == m_capIdx)
+                        if (idx == m_cupIdx)
                         {
-                            final int capIdxx = ++m_capIdx;
+                            final int capIdxx = ++m_cupIdx;
                             if (capIdxx == m_cup.length)
                             {
                                 if (m_ball.isVisible())
@@ -1303,7 +1303,7 @@ public class GameServerView extends GameView
                                     m_session.sendMessage(msg);
                                     msg.release();
 
-                                    m_capIdx = capIdx;
+                                    m_cupIdx = capIdx;
                                     m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
                                     m_state = STATE_CAP_SET;
                                 }
@@ -1404,7 +1404,7 @@ public class GameServerView extends GameView
                                 }
                             } );
 
-                            final RetainableByteBuffer msg = Protocol.Guess.create(m_byteBufferPool, (short) m_capWithBall);
+                            final RetainableByteBuffer msg = Protocol.Guess.create(m_byteBufferPool, (short) m_cupWithBall);
                             m_session.sendMessage(msg);
                             msg.release();
                         }
