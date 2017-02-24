@@ -78,7 +78,7 @@ public class GameClientSession extends GameSession
                     Protocol.DragCup.print(sb, msg);
                     Log.v(LOG_PROTOCOL, sb.toString());
                 }
-                m_view.setCapPositionCT(
+                m_view.setCupPositionCT(
                         Protocol.DragCup.getId(msg),
                         Protocol.DragCup.getX(msg),
                         Protocol.DragCup.getY(msg),
@@ -92,7 +92,7 @@ public class GameClientSession extends GameSession
                     Protocol.PutCup.print(sb, msg);
                     Log.v(LOG_PROTOCOL, sb.toString());
                 }
-                m_view.putCapCT(
+                m_view.putCupCT(
                         Protocol.PutCup.getId(msg),
                         Protocol.PutCup.getX(msg),
                         Protocol.PutCup.getY(msg),
