@@ -86,7 +86,7 @@ public class GameClientView extends GameView
                     m_pingConfig,
                     m_desiredTableHeight,
                     m_deviceId,
-                    m_playerName );
+                    m_playerName);
         }
 
         public void onException( IOException ex )
@@ -641,7 +641,7 @@ public class GameClientView extends GameView
                     m_table = new Table(context, macro);
                     m_ball = new Ball(context, BALL_COLOR);
 
-                    final ModelCup modelCup = new ModelCup(context, CAP_STRIPES, macro);
+                    final ModelCup modelCup = new ModelCup(context, CUP_STRIPES, macro);
                     m_cup = new Cup[3];
                     for (int idx = 0; idx< m_cup.length; idx++)
                         m_cup[idx] = new Cup(modelCup);
@@ -878,7 +878,7 @@ public class GameClientView extends GameView
     public void putCupCT(int id, float virtualX, float virtualY, int gambleTime)
     {
         setCupPositionCT(id, virtualX, virtualY, 0f);
-        m_activity.playSound_CapPut();
+        m_activity.playSound_CupPut();
 
         if (gambleTime > 0)
             m_timerManager.scheduleTimer(getTimerQueue(), new GambleTimerImpl(gambleTime));
@@ -953,7 +953,7 @@ public class GameClientView extends GameView
         }
         catch (final InterruptedException ex)
         {
-            Log.w( LOG_TAG, "Exception:", ex );
+            Log.w(LOG_TAG, "Exception:", ex);
             interrupted = true;
         }
 

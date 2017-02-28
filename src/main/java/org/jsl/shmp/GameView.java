@@ -45,7 +45,7 @@ public abstract class GameView extends GLSurfaceView implements GLSurfaceView.Re
 {
     protected static final float VIRTUAL_TABLE_WIDTH = 1000.0f;
     protected static final int BALL_COLOR = Color.GREEN;
-    protected static final int CAP_STRIPES = 8;
+    protected static final int CUP_STRIPES = 8;
 
     protected static final int GAMBLE_TIMER_COLOR = Color.GREEN;
     protected static final float GAMBLE_TIMER_FONT_SIZE = 0.8f;

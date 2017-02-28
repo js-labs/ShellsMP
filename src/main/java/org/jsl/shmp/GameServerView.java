@@ -45,17 +45,17 @@ public class GameServerView extends GameView
     private static final String LOG_TAG = GameServerView.class.getSimpleName();
 
     private static final int STATE_WAIT_CLIENT = 0;
-    private static final int STATE_BALL_SET  = 1;
-    private static final int STATE_BALL_DRAG = 2;
-    private static final int STATE_CAP_SET   = 3;
-    private static final int STATE_CAP_DRAG  = 4;
-    private static final int STATE_GAMBLE    = 5;
+    private static final int STATE_BALL_SET    = 1;
+    private static final int STATE_BALL_DRAG   = 2;
+    private static final int STATE_CUP_SET     = 3;
+    private static final int STATE_CUP_DRAG    = 4;
+    private static final int STATE_GAMBLE      = 5;
     private static final int STATE_GAMBLE_TIMER_TOUCH = 6;
-    private static final int STATE_WAIT_REPLY = 7;
-    private static final int STATE_FINISHED  = 8;
+    private static final int STATE_WAIT_REPLY  = 7;
+    private static final int STATE_FINISHED    = 8;
 
-    private static final int CAP_TOUCH = 1;
-    private static final int CAP_DRAG  = 2;
+    private static final int CUP_TOUCH = 1;
+    private static final int CUP_DRAG  = 2;
 
     private static class SceneObject
     {
@@ -63,7 +63,7 @@ public class GameServerView extends GameView
         private float m_x;
         private float m_y;
 
-        public boolean contains( float x, float y, float radius )
+        public boolean contains(float x, float y, float radius)
         {
             final float dx = (x - m_x);
             final float dy = (y - m_y);
@@ -73,19 +73,19 @@ public class GameServerView extends GameView
         public float getX() { return m_x; }
         public float getY() { return m_y; }
 
-        public void moveTo( float x, float y )
+        public void moveTo(float x, float y)
         {
             m_x = x;
             m_y = y;
         }
 
-        public float moveByX( float dx )
+        public float moveByX(float dx)
         {
             m_x += dx;
             return m_x;
         }
 
-        public float moveByY( float dy )
+        public float moveByY(float dy)
         {
             m_y += dy;
             return m_y;
@@ -162,7 +162,7 @@ public class GameServerView extends GameView
             }
         }
 
-        public void setVisible( boolean visible )
+        public void setVisible(boolean visible)
         {
             m_visible = visible;
         }
@@ -178,7 +178,7 @@ public class GameServerView extends GameView
         private final int m_id;
         private final ModelCup m_model;
         private final float [] m_matrix;
-        private boolean m_draw;
+        private boolean m_visible;
 
         private float m_eventX;
         private float m_eventY;
@@ -190,7 +190,7 @@ public class GameServerView extends GameView
             m_model = model;
             m_matrix = new float[16*2];
             Matrix.setIdentityM( m_matrix, 0 );
-            m_draw = false;
+            m_visible = false;
         }
 
         public int getID()
@@ -206,12 +206,12 @@ public class GameServerView extends GameView
             Matrix.scaleM(tmp, 16, radius, radius, radius);
             Matrix.multiplyMM(m_matrix, 0, tmp, 0, tmp, 16);
             Matrix.invertM(m_matrix, 16, m_matrix, 0);
-            m_draw = true;
+            m_visible = true;
         }
 
         public void draw(float [] vpMatrix, Vector eyePosition, Vector light, ShadowObject shadowObject, float [] tmp, int tmpOffset)
         {
-            if (m_draw)
+            if (m_visible)
             {
                 Matrix.multiplyMM(tmp, tmpOffset, vpMatrix, 0, m_matrix, 0);
                 Matrix.multiplyMV(tmp, tmpOffset+16, m_matrix, 16, eyePosition.v, eyePosition.offs);
@@ -232,14 +232,14 @@ public class GameServerView extends GameView
 
         public void drawShadow(float [] vpMatrix, int vpMatrixOffset, float [] tmp)
         {
-            if (m_draw)
+            if (m_visible)
             {
                 Matrix.multiplyMM(tmp, 0, vpMatrix, vpMatrixOffset, m_matrix, 0);
                 m_model.drawShadow(tmp, 0);
             }
         }
 
-        void setEventPosition( float x, float y )
+        void setEventPosition(float x, float y)
         {
             m_eventX = x;
             m_eventY = y;
@@ -255,7 +255,7 @@ public class GameServerView extends GameView
             return m_eventY;
         }
 
-        void setState( int state )
+        void setState(int state)
         {
             m_state = state;
         }
@@ -263,6 +263,11 @@ public class GameServerView extends GameView
         int getState()
         {
             return m_state;
+        }
+
+        void setVisible(boolean visible)
+        {
+            m_visible = visible;
         }
     }
 
@@ -308,16 +313,16 @@ public class GameServerView extends GameView
 
         public GambleTimerImpl(int timeout)
         {
-            super( m_activity, timeout );
+            super(m_activity, timeout);
         }
     }
 
-    private void setBottomLineText( int resId, int color, float fontSize )
+    private void setBottomLineText(int resId, int color, float fontSize)
     {
-        setBottomLineText( getContext().getString(resId), color, fontSize );
+        setBottomLineText(getContext().getString(resId), color, fontSize);
     }
 
-    private void setBottomLineText( String str, int color, float fontSize )
+    private void setBottomLineText(String str, int color, float fontSize)
     {
         m_bottomLineText = str;
         m_bottomLineTextFontSize = (getBottomReservedHeight() * fontSize);
@@ -340,7 +345,7 @@ public class GameServerView extends GameView
     private final TimerManager m_timerManager;
 
     private final float [] m_tmpMatrix;
-    private final HashMap<Integer, Cup> m_capByPointer;
+    private final HashMap<Integer, Cup> m_cupByPointer;
 
     private Vector m_light;
     private Vector m_eyePosition;
@@ -387,15 +392,15 @@ public class GameServerView extends GameView
         private final short m_desiredTableHeight;
         private final short m_ballRadius;
 
-        public GameAcceptor( short desiredTableHeight, short ballRadius )
+        public GameAcceptor(short desiredTableHeight, short ballRadius)
         {
             m_desiredTableHeight = desiredTableHeight;
             m_ballRadius = ballRadius;
         }
 
-        public void onAcceptorStarted( Collider collider, int localPortNumber )
+        public void onAcceptorStarted(Collider collider, int localPortNumber)
         {
-            Log.d( LOG_TAG, "Acceptor started, port=" + localPortNumber );
+            Log.d(LOG_TAG, "Acceptor started, port=" + localPortNumber);
             m_lock.lock();
             try
             {
@@ -408,7 +413,7 @@ public class GameServerView extends GameView
                 final Bitmap statusLine = createStatusLine( localPortNumber, Color.WHITE );
                 executeOnRenderThread( new RenderThreadRunnable() {
                     public boolean runOnRenderThread(int frameId) {
-                        setStatusLine( statusLine );
+                        setStatusLine(statusLine);
                         return false;
                     }
                 } );
@@ -419,17 +424,17 @@ public class GameServerView extends GameView
             }
         }
 
-        public Session.Listener createSessionListener( Session session )
+        public Session.Listener createSessionListener(Session session)
         {
             boolean interrupted = false;
             try
             {
-                session.getCollider().removeAcceptor( this );
+                session.getCollider().removeAcceptor(this);
             }
             catch (final InterruptedException ex)
             {
                 interrupted = true;
-                Log.e( LOG_TAG, ex.toString() );
+                Log.e(LOG_TAG, ex.toString(), ex);
             }
             finally
             {
@@ -440,7 +445,7 @@ public class GameServerView extends GameView
             m_lock.lock();
             try
             {
-                m_nsdManager.unregisterService( m_registrationListener );
+                m_nsdManager.unregisterService(m_registrationListener);
                 m_registrationListenerStop = true;
             }
             finally
@@ -466,14 +471,14 @@ public class GameServerView extends GameView
           */
         private final int m_portNumber;
 
-        public RegistrationListener( int portNumber )
+        public RegistrationListener(int portNumber)
         {
             m_portNumber = portNumber;
         }
 
-        public void onRegistrationFailed( NsdServiceInfo serviceInfo, int errorCode )
+        public void onRegistrationFailed(NsdServiceInfo serviceInfo, int errorCode)
         {
-            Log.d( LOG_TAG, "onRegistrationFailed: " + errorCode );
+            Log.d(LOG_TAG, "onRegistrationFailed: " + errorCode);
             m_lock.lock();
             try
             {
@@ -486,7 +491,7 @@ public class GameServerView extends GameView
             m_activity.onGameRegistrationFailed();
         }
 
-        public void onUnregistrationFailed( NsdServiceInfo serviceInfo, int errorCode )
+        public void onUnregistrationFailed(NsdServiceInfo serviceInfo, int errorCode)
         {
             Log.d( LOG_TAG, "onUnregistrationFailed: " + errorCode );
             if (BuildConfig.DEBUG)
@@ -494,7 +499,7 @@ public class GameServerView extends GameView
             /* Nothing critical probably... */
         }
 
-        public void onServiceRegistered( NsdServiceInfo serviceInfo )
+        public void onServiceRegistered(NsdServiceInfo serviceInfo)
         {
             m_lock.lock();
             try
@@ -505,10 +510,10 @@ public class GameServerView extends GameView
                 final String serviceName = serviceInfo.getServiceName();
                 Log.d( LOG_TAG, "onServiceRegistered: " + serviceName );
 
-                final Bitmap statusLine = createStatusLine( m_portNumber, Color.GREEN );
+                final Bitmap statusLine = createStatusLine(m_portNumber, Color.GREEN);
                 executeOnRenderThread( new RenderThreadRunnable() {
                     public boolean runOnRenderThread(int frameId) {
-                        setStatusLine( statusLine );
+                        setStatusLine(statusLine);
                         return false;
                     }
                 } );
@@ -588,7 +593,7 @@ public class GameServerView extends GameView
         m_timerManager = new TimerManager();
 
         m_tmpMatrix = new float[64];
-        m_capByPointer = new HashMap<Integer, Cup>();
+        m_cupByPointer = new HashMap<Integer, Cup>();
 
         m_byteBufferPool = new RetainableByteBufferPool(1024, true, Protocol.BYTE_ORDER);
 
@@ -612,13 +617,15 @@ public class GameServerView extends GameView
 
         try
         {
-            final float[] light = {-(width / 2f), // x
-                    (height / 2f), // y
-                    (width * 2f),  // z
-                    0f, // w
-                    1f, // r
-                    1f, // g
-                    1f  // b
+            final float [] light =
+            {
+                -(width / 2f), // x
+                (height / 2f), // y
+                 (width * 2f), // z
+                           0f, // w
+                           1f, // r
+                           1f, // g
+                           1f  // b
             };
 
             m_light = new Vector(light, 0);
@@ -638,7 +645,7 @@ public class GameServerView extends GameView
             m_table = new Table(context, macro);
             m_ball = new Ball(context, BALL_COLOR);
 
-            final ModelCup modelCup = new ModelCup(context, CAP_STRIPES, macro);
+            final ModelCup modelCup = new ModelCup(context, CUP_STRIPES, macro);
             for (int idx = 0; idx< m_cup.length; idx++)
                 m_cup[idx] = new Cup(idx, modelCup);
 
@@ -811,15 +818,46 @@ public class GameServerView extends GameView
 
     public void onClientDisconnected()
     {
-        /* m_state will be changed to STATE_FINISHED in the collider thread,
-         * so update will be serial with the onClientDisconnected() call.
-         */
-        if (!m_pause && (m_state != STATE_FINISHED))
-        {
-            m_clientDisconnected = true;
-            m_activity.showMessageAndFinish(
-                    R.string.info, R.string.other_player_quit_before_game_end, m_clientDeviceId);
-        }
+        m_activity.runOnUiThread( new Runnable() {
+            public void run()
+            {
+                if (!m_pause && (m_state != STATE_FINISHED))
+                {
+                    m_clientDisconnected = true;
+                    boolean interrupted = false;
+
+                    try
+                    {
+                        m_timerManager.cancelTimer(getTimerQueue());
+                    }
+                    catch (final InterruptedException ex)
+                    {
+                        Log.w(LOG_TAG, ex.toString(), ex);
+                        interrupted = true;
+                    }
+
+                    final int state = m_state;
+                    m_state = STATE_FINISHED;
+
+                    executeOnRenderThread(new RenderThreadRunnable() {
+                        public boolean runOnRenderThread(int frameId)
+                        {
+                            if ((state == STATE_BALL_SET) || (state == STATE_BALL_DRAG))
+                                m_ball.setVisible(false);
+
+                            if ((state == STATE_CUP_SET) || (state == STATE_CUP_DRAG))
+                                m_cup[m_cupIdx].setVisible(false);
+
+                            setBottomLineText(R.string.player_left_game, Color.GREEN, 0.4f);
+                            return false;
+                        }
+                    });
+
+                    if (interrupted)
+                        Thread.currentThread().interrupt();
+                }
+            }
+        });
     }
 
     public void setPing(int ping)
@@ -867,7 +905,7 @@ public class GameServerView extends GameView
                     Log.d(LOG_TAG, "STATE_BALL_SET -> STATE_BALL_DRAG");
                 }
             }
-            else if (m_state == STATE_CAP_SET)
+            else if (m_state == STATE_CUP_SET)
             {
                 final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
                 final float eventY = Vector.getMVY(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
@@ -875,13 +913,13 @@ public class GameServerView extends GameView
                 {
                     m_eventX = eventX;
                     m_eventY = eventY;
-                    m_state = STATE_CAP_DRAG;
-                    Log.d( LOG_TAG, "STATE_CAP_SET -> STATE_CAP_DRAG" );
+                    m_state = STATE_CUP_DRAG;
+                    Log.d( LOG_TAG, "STATE_CUP_SET -> STATE_CUP_DRAG" );
                 }
             }
             else if (m_state == STATE_GAMBLE)
             {
-                if (!m_capByPointer.isEmpty())
+                if (!m_cupByPointer.isEmpty())
                     throw new AssertionError();
 
                 final int pointerIndex = event.getActionIndex();
@@ -895,8 +933,8 @@ public class GameServerView extends GameView
                     if (cup.contains(eventX, eventY, m_ballRadius))
                     {
                         cup.setEventPosition(eventX, eventY);
-                        cup.setState(CAP_TOUCH);
-                        m_capByPointer.put(pointerId, cup);
+                        cup.setState(CUP_TOUCH);
+                        m_cupByPointer.put(pointerId, cup);
                         break;
                     }
                 }
@@ -933,8 +971,8 @@ public class GameServerView extends GameView
                     if (cup.contains(eventX, eventY, m_ballRadius))
                     {
                         cup.setEventPosition(eventX, eventY);
-                        cup.setState(CAP_TOUCH);
-                        m_capByPointer.put(pointerId, cup);
+                        cup.setState(CUP_TOUCH);
+                        m_cupByPointer.put(pointerId, cup);
                         break;
                     }
                 }
@@ -947,7 +985,7 @@ public class GameServerView extends GameView
                 final int pointerIndex = event.getActionIndex();
                 final int pointerId = event.getPointerId(pointerIndex);
                 Log.d(LOG_TAG, "STATE_GAMBLE: POINTER_UP: pointerIndex=" + pointerIndex + " pointerId=" + pointerId);
-                m_capByPointer.remove(pointerId);
+                m_cupByPointer.remove(pointerId);
             }
         }
         else if (action == MotionEvent.ACTION_MOVE)
@@ -982,7 +1020,7 @@ public class GameServerView extends GameView
                 m_eventX = eventX;
                 m_eventY = eventY;
             }
-            else if (m_state == STATE_CAP_DRAG)
+            else if (m_state == STATE_CUP_DRAG)
             {
                 final int capIdx = m_cupIdx;
                 final float eventX = Vector.getMVX(m_screen2TableMatrix, 0, event.getX(), event.getY(), 0f, 1f);
@@ -1013,7 +1051,7 @@ public class GameServerView extends GameView
                 for (int pointerIndex=0; pointerIndex<pointerCount; pointerIndex++)
                 {
                     final int pointerId = event.getPointerId(pointerIndex);
-                    final Cup cup = m_capByPointer.get(pointerId);
+                    final Cup cup = m_cupByPointer.get(pointerId);
                     if (cup != null)
                     {
                         /* Properly detect cup collision would be quite difficult now,
@@ -1024,7 +1062,7 @@ public class GameServerView extends GameView
                         float dx = (eventX - cup.getEventX());
                         float dy = (eventY - cup.getEventY());
 
-                        if (cup.getState() == CAP_TOUCH)
+                        if (cup.getState() == CUP_TOUCH)
                         {
                             final int touchSlop = getTouchSlop();
                             if (Math.sqrt(dx*dx + dy*dy) < touchSlop)
@@ -1032,7 +1070,7 @@ public class GameServerView extends GameView
                                 /* Let's wait more significant movement */
                                 break;
                             }
-                            cup.setState(CAP_DRAG);
+                            cup.setState(CUP_DRAG);
                         }
 
                         float cx = cup.moveByX(dx);
@@ -1089,7 +1127,7 @@ public class GameServerView extends GameView
                                     }
                                 } );
                                 cup.moveTo(fcx, fcy);
-                                m_capByPointer.remove(pointerId);
+                                m_cupByPointer.remove(pointerId);
                             }
                         }
                         else
@@ -1117,7 +1155,7 @@ public class GameServerView extends GameView
                                 }
                             } );
 
-                            m_capByPointer.remove( pointerId );
+                            m_cupByPointer.remove( pointerId );
                         }
                     }
                     /* else pointer missed the cup when was down */
@@ -1163,7 +1201,7 @@ public class GameServerView extends GameView
                     msg.release();
 
                     m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
-                    m_state = STATE_CAP_SET;
+                    m_state = STATE_CUP_SET;
                     m_activity.playSound_BallPut();
                 }
                 else
@@ -1190,7 +1228,7 @@ public class GameServerView extends GameView
                     m_state = STATE_BALL_SET;
                 }
             }
-            else if (m_state == STATE_CAP_DRAG)
+            else if (m_state == STATE_CUP_DRAG)
             {
                 final int capIdx = m_cupIdx;
                 final float cx = m_cup[capIdx].getX();
@@ -1239,7 +1277,7 @@ public class GameServerView extends GameView
                             } );
                             m_cup[capIdx].moveTo(ballX, ballY);
                             m_cup[capIdxx].moveTo(getBallStartX(), getBallStartY());
-                            m_state = STATE_CAP_SET;
+                            m_state = STATE_CUP_SET;
                             gambleTime = 0;
                         }
 
@@ -1252,7 +1290,7 @@ public class GameServerView extends GameView
                         m_session.sendMessage(msg);
                         msg.release();
 
-                        m_activity.playSound_CapPut();
+                        m_activity.playSound_CupPut();
                     }
                     else if (m_ball.isVisible() && (Vector.length(m_ballX-cx, m_ballY-cy) <= m_ballRadius*2))
                     {
@@ -1272,7 +1310,7 @@ public class GameServerView extends GameView
                         msg.release();
 
                         m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
-                        m_state = STATE_CAP_SET;
+                        m_state = STATE_CUP_SET;
                     }
                     else
                     {
@@ -1305,7 +1343,7 @@ public class GameServerView extends GameView
 
                                     m_cupIdx = capIdx;
                                     m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
-                                    m_state = STATE_CAP_SET;
+                                    m_state = STATE_CUP_SET;
                                 }
                                 else
                                 {
@@ -1317,7 +1355,7 @@ public class GameServerView extends GameView
                                     msg.release();
 
                                     m_state = STATE_GAMBLE;
-                                    m_activity.playSound_CapPut();
+                                    m_activity.playSound_CupPut();
 
                                     final GambleTimer gambleTimer = new GambleTimerImpl(m_gameTime);
                                     m_timerManager.scheduleTimer( getTimerQueue(), gambleTimer );
@@ -1339,8 +1377,8 @@ public class GameServerView extends GameView
                                 msg.release();
 
                                 m_cup[capIdxx].moveTo(getBallStartX(), getBallStartY());
-                                m_state = STATE_CAP_SET;
-                                m_activity.playSound_CapPut();
+                                m_state = STATE_CUP_SET;
+                                m_activity.playSound_CupPut();
                             }
                         }
                         else
@@ -1358,7 +1396,7 @@ public class GameServerView extends GameView
                             msg.release();
 
                             m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
-                            m_state = STATE_CAP_SET;
+                            m_state = STATE_CUP_SET;
                         }
                     }
                 }
@@ -1377,7 +1415,7 @@ public class GameServerView extends GameView
                     msg.release();
 
                     m_cup[capIdx].moveTo(getBallStartX(), getBallStartY());
-                    m_state = STATE_CAP_SET;
+                    m_state = STATE_CUP_SET;
                 }
             }
             else if (m_state == STATE_GAMBLE)
@@ -1385,7 +1423,7 @@ public class GameServerView extends GameView
                 final int pointerIndex = event.getActionIndex();
                 final int pointerId = event.getPointerId(pointerIndex);
                 Log.d(LOG_TAG, "STATE_GAMBLE: ACTION_UP/ACTION_CANCEL: pointerIndex=" + pointerIndex + " pointerId=" + pointerId);
-                m_capByPointer.remove(pointerId);
+                m_cupByPointer.remove(pointerId);
             }
             else if (m_state == STATE_GAMBLE_TIMER_TOUCH)
             {

@@ -40,7 +40,7 @@ public class GameActivity extends Activity
 
     private SoundPool m_soundPool;
     private int m_soundBallSet;
-    private int m_soundCapSet;
+    private int m_soundCupSet;
     private int m_soundTick;
 
     protected void playSound_BallPut()
@@ -48,9 +48,9 @@ public class GameActivity extends Activity
         m_soundPool.play(m_soundBallSet, 1f, 1f, /*priority*/1, /*loop*/0, /*rate*/1f);
     }
 
-    protected void playSound_CapPut()
+    protected void playSound_CupPut()
     {
-        m_soundPool.play(m_soundCapSet, 1f, 1f, /*priority*/1, /*loop*/0, /*rate*/1f);
+        m_soundPool.play(m_soundCupSet, 1f, 1f, /*priority*/1, /*loop*/0, /*rate*/1f);
     }
 
     protected void playSound_Tick()
@@ -75,7 +75,7 @@ public class GameActivity extends Activity
 
         m_soundPool = new SoundPool(3, AudioManager.STREAM_MUSIC, 0);
         m_soundBallSet = m_soundPool.load(this, R.raw.ball_set, 1);
-        m_soundCapSet = m_soundPool.load(this, R.raw.cup_set, 1);
+        m_soundCupSet = m_soundPool.load(this, R.raw.cup_set, 1);
         m_soundTick = m_soundPool.load(this, R.raw.tick, 1);
     }
 

@@ -16,6 +16,7 @@
     <string name="nsd_not_found">NSD not found</string>
     <string name="other_player_quit_before_game_end">Other player quit before game end. You win!</string>
     <string name="ping">ping: </string>
+    <string name="player_left_game">Player left game,\nyou win!</string>
     <string name="player_name">Player name</string>
     <string name="port">Port: </string>
     <string name="render_shadows">Render shadows</string>

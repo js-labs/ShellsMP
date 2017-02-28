@@ -32,5 +32,5 @@ public class Prefs
     public static final long DEFAULT_PING_TIMEOUT = 10;
     public static final short DEFAULT_GAME_TIME = 20;
     public static final short DEFAULT_CAPS = 3;
-    public static final boolean RENDER_DEBUG = true;
+    public static final boolean RENDER_DEBUG = false;
 }
