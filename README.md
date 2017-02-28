@@ -8,6 +8,7 @@ Devices should be connected to the same WiFi network segment.
 
 Source code gives an example how following techonologies can be used:
 - Android NSD for device discovery
+- OpenGL text rendering
 - OpenGL ball rendering
 - OpenGL shadows rendering
 - JS-Collider: Java network framework https://github.com/js-labs/js-collider
