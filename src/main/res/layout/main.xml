@@ -3,18 +3,21 @@
               android:orientation="vertical"
               android:layout_width="match_parent"
               android:layout_height="match_parent">
+
     <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/start_game"
-            android:id="@+id/buttonStartGame"
-            android:layout_gravity="center_horizontal"
-            android:padding="10dp"
-            android:onClick="onStartGame"/>
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/start_game"
+        android:id="@+id/buttonStartGame"
+        android:layout_gravity="center_horizontal"
+        android:padding="10dp"
+        android:onClick="onStartGame"/>
+
     <ListView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/listViewGames"
-            android:layout_gravity="center_horizontal"
-            android:padding="10dp"/>
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/listViewGames"
+        android:layout_gravity="center_horizontal"
+        android:padding="10dp"/>
+
 </LinearLayout>
