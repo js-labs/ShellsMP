@@ -7,6 +7,7 @@ Devices should be connected to the same WiFi network segment.
 
 If you are thimblerigger - start the game, wait for the victim,
 put ball and few cups then move cups.
+
 If you are victim - connect the game, watch and guess.
 
 Source code gives an example how following techonologies can be used:
