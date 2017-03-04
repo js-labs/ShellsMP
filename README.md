@@ -15,4 +15,4 @@ Source code gives an example how following techonologies can be used:
 - OpenGL text rendering
 - OpenGL ball rendering
 - OpenGL shadows rendering
-- JS-Collider: Java network framework [https://github.com/js-labs/js-collider JS-Collider]
+- JS-Collider: Java network framework https://github.com/js-labs/js-collider
