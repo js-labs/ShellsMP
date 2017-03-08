@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about">About</string>
+    <string name="about_text">
+        Program released under GPL license, source code available at
+        <a href="https://github.com/js-labs/ShellsMP">https://github.com/js-labs/ShellsMP</a>\n\n
+        Application use JS-Collider (scalable Java NIO framework), see
+        <a href="https://github.com/js-labs/js-collider">https://github.com/js-labs/js-collider</a>
+        for further details.
+    </string>
     <string name="app_name">ShellsMP</string>
     <string name="cancel">Cancel</string>
     <string name="cant_connect_to_server">Can\'t connect to the game server</string>

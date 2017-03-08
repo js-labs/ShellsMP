@@ -21,12 +21,16 @@ package org.jsl.shmp;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.*;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.nsd.NsdManager;
 import android.net.nsd.NsdServiceInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.text.method.LinkMovementMethod;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Base64;
 import android.util.Log;
 import android.view.*;
@@ -789,16 +793,16 @@ public class MainActivity extends Activity
         return serviceInfo;
     }
 
-    public boolean onCreateOptionsMenu( Menu menu )
+    public boolean onCreateOptionsMenu(Menu menu)
     {
-        getMenuInflater().inflate( R.menu.menu, menu );
+        getMenuInflater().inflate(R.menu.menu, menu);
         return true;
     }
 
-    public boolean onOptionsItemSelected( MenuItem item )
+    public boolean onOptionsItemSelected(MenuItem item)
     {
-        final LayoutInflater layoutInflater = LayoutInflater.from( this );
-        final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder( this );
+        final LayoutInflater layoutInflater = LayoutInflater.from(this);
+        final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         switch (item.getItemId())
         {
             case R.id.actionSettings:
@@ -825,19 +829,30 @@ public class MainActivity extends Activity
 
             case R.id.actionAbout:
             {
-                /*
-                final View dialogView = layoutInflater.inflate( R.layout.dialog_about, null );
-                final TextView textView = (TextView) dialogView.findViewById( R.id.textView );
-                textView.setMovementMethod( LinkMovementMethod.getInstance() /new ScrollingMovementMethod()/ );
-                dialogBuilder.setTitle( R.string.about );
-                dialogBuilder.setView( dialogView );
-                dialogBuilder.setPositiveButton( getString(R.string.close), null );
+                final View dialogView = layoutInflater.inflate(R.layout.dialog_about, null);
+                final TextView textViewHeading = (TextView) dialogView.findViewById(R.id.textViewHeading);
+                String str = getString(R.string.app_name);
+                try
+                {
+                    final PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+                    str += " v";
+                    str += packageInfo.versionName;
+                }
+                catch (final PackageManager.NameNotFoundException ex)
+                {
+                    Log.e(LOG_TAG, ex.toString(), ex);
+                }
+                textViewHeading.setText(str);
+                final TextView textViewAbout = (TextView) dialogView.findViewById(R.id.textViewAbout);
+                textViewAbout.setMovementMethod(LinkMovementMethod.getInstance());
+                dialogBuilder.setTitle(R.string.about);
+                dialogBuilder.setView(dialogView);
+                dialogBuilder.setPositiveButton(getString(R.string.close), null);
                 final AlertDialog dialog = dialogBuilder.create();
                 dialog.show();
-                */
             }
             break;
         }
-        return super.onOptionsItemSelected( item );
+        return super.onOptionsItemSelected(item);
     }
 }
