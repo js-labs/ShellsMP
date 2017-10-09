@@ -19,4 +19,4 @@ Source code gives an example how following techonologies can be used:
 
 Download app from
 * [Google Play](https://play.google.com/store/apps/details?id=org.jsl.shmp)
-* [F-Droid](https://f-droid.org/repository/browse/?fdfilter=shellsmp&fdid=org.jsl.shmp)
+* [F-Droid](https://f-droid.org/packages/org.jsl.shmp/)
