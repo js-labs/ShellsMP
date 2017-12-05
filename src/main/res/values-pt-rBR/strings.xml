@@ -38,7 +38,7 @@
     <string name="waiting_players">Esperando jogadores</string>
     <string name="waiting_second_player">Esperando segundo jogador...</string>
     <string name="waiting">esperando...</string>
-    <string name="wifi_dialog_message">Pode jogar partidas apenas na mesma rede WiFi.</string>
+    <string name="wifi_dialog_message">Somente é possível jogar partidas na mesma rede WiFi.</string>
     <string name="wifi_is_off">WiFI está desligado</string>
     <string name="you_lose">Você perdeu!</string>
     <string name="you_win">Você ganhou!</string>
