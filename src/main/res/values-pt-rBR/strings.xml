@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about">Sobre</string>
+    <string name="about_text">
+        Programa lançado sob a licença GPL, o código fonte está disponível em
+        <a href="https://github.com/js-labs/ShellsMP">https://github.com/js-labs/ShellsMP</a>\n\n
+        App usa JS-Collider (framework Java NIO escalável), veja
+        <a href="https://github.com/js-labs/js-collider">https://github.com/js-labs/js-collider</a>
+        para mais detalhes.
+    </string>
+    <string name="app_name">ShellsMP</string>
+    <string name="cancel">Cancelar</string>
+    <string name="cant_connect_to_server">Impossível conectar-se ao servidor do jogo</string>
+    <string name="check_wifi_status_on_start">Verificar estado do WiFi ao iniciar</string>
+    <string name="connect">Conectar</string>
+    <string name="connection_lost">Conexão perdida</string>
+    <string name="close">Fechar</string>
+    <string name="error">Erro</string>
+    <string name="game_time">Tempo de jogo</string>
+    <string name="guess">Adivinhar</string>
+    <string name="info">Informação</string>
+    <string name="never_ask_again">Não perguntar novamente</string>
+    <string name="nsd_not_found">NSD não encontrado</string>
+    <string name="other_player_quit_before_game_end">O outro jogador saiu antes da partida acabar. Você ganhou!</string>
+    <string name="ping">ping: </string>
+    <string name="player_left_game">Jogador deixou a partida,\nvocê ganhou!</string>
+    <string name="player_name">Nome do jogador</string>
+    <string name="port">Porta: </string>
+    <string name="render_shadows">Renderizar sombras</string>
+    <string name="quit_game_before_end">Saiu antes do fim da partida. Você perdeu!</string>
+    <string name="sec">seg</string>
+    <string name="set">Set</string>
+    <string name="settings">Configurações</string>
+    <string name="start_game">Iniciar partida</string>
+    <string name="system_error">Erro de sistema</string>
+    <string name="turn_wifi_on">Ligar WiFi</string>
+    <string name="thimblerigger_left_game">Thimblerigger deixou a partida,\nvocê ganhou!</string>
+    <string name="waiting_players">Esperando jogadores</string>
+    <string name="waiting_second_player">Esperando segundo jogador...</string>
+    <string name="waiting">esperando...</string>
+    <string name="wifi_dialog_message">Somente é possível jogar partidas na mesma rede WiFi.</string>
+    <string name="wifi_is_off">WiFI está desligado</string>
+    <string name="you_lose">Você perdeu!</string>
+    <string name="you_win">Você ganhou!</string>
+</resources>
